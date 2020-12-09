@@ -54,31 +54,41 @@ enum {
    RD_API_COUNT
 };
 
-// Display capabilities bits
-// a virtual display can implement 1 or more types of displays
-#define DISPLAY_TYPE_OLED_1BPP   0x00000001
-#define DISPLAY_TYPE_OLED_4BPP   0x00000002
-#define DISPLAY_TYPE_OLED_16BPP  0x00000004
-#define DISPLAY_TYPE_LCD_1BPP    0x00000008
-#define DISPLAY_TYPE_LCD_16BPP   0x00000010
-
-// Display chipset types
-#define DISPLAY_CTRL_NONE        0
-#define DISPLAY_CTRL_SSD1306     0x00010000
-#define DISPLAY_CTRL_SH1106      0x00020000
-#define DISPLAY_CTRL_SH1107      0x00040000
-#define DISPLAY_CTRL_UC1701      0x00080000
-#define DISPLAY_CTRL_HX1230      0x00100000
-#define DISPLAY_CTRL_ST7735      0x00200000
-#define DISPLAY_CTRL_ST7789      0x00400000
-#define DISPLAY_CTRL_ILI9341     0x00800000
-#define DISPLAY_CTRL_ILI9342     0x01000000
-#define DISPLAY_CTRL_ILI9486     0x02000000
-#define DISPLAY_CTRL_ILI9225     0x04000000
-#define DISPLAY_CTRL_HX8357      0x08000000
-#define DISPLAY_CTRL_SSD1331     0x10000000
-#define DISPLAY_CTRL_SSD1351     0x20000000
-#define DISPLAY_CTRL_SSD1283A    0x40000000
+// Supported display types
+enum {
+    RD_LCD_INVALID=0,
+    // Color LCDs/OLEDs
+    RD_LCD_ILI9341, // 240x320
+    RD_LCD_ILI9225, // 176x220
+    RD_LCD_HX8357, // 320x480
+    RD_LCD_ST7735R, // 128x160
+    RD_LCD_ST7735S, // 80x160 with offset of 24,0
+    RD_LCD_ST7735S_B, // 80x160 with offset of 26,2
+    RD_LCD_SSD1331,
+    RD_LCD_SSD1351,
+    RD_LCD_ILI9342, // 320x240 IPS
+    RD_LCD_ST7789, // 240x320
+    RD_LCD_ST7789_240,  // 240x240
+    RD_LCD_ST7789_135, // 135x240
+    RD_LCD_ST7789_NOCS, // 240x240 without CS, vertical offset of 80, MODE3
+    RD_LCD_SSD1283A, // 132x132
+    RD_LCD_ILI9486, // 320x480
+    // Monochrome LCDs/OLEDs
+    RD_OLED_128x128,
+    RD_OLED_128x32,
+    RD_OLED_128x64,
+    RD_OLED_132x64,
+    RD_OLED_64x32,
+    RD_OLED_96x16,
+    RD_OLED_72x40,
+    RD_LCD_UC1701,
+    RD_LCD_UC1609,
+    RD_LCD_HX1230,
+    RD_LCD_NOKIA5110,
+    RD_SHARP_144x168,
+    RD_SHARP_400x240,
+    RD_LCD_COUNT
+};
 
 // Error codes returned by getLastError()
 enum {
@@ -114,7 +124,7 @@ class RemoteDisplay
     virtual int drawPixel(int x, int y, uint16_t u16Color) {return 0;};
     virtual int setWindow(int x, int y, int w, int h) {return 0;};
     virtual int writePixels(void *pixels, int count, uint8_t bDMA) {return 0;};
-    virtual int drawRect(int x1, int y1, int x2, int y2, uint16_t u16Color, int bFilled) {return 0;};
+    virtual int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled) {return 0;};
     virtual int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor) {return 0;};
     virtual int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled) {return 0;};
     virtual int setOrientation(int angle) {_orientation = angle; return RD_SUCCESS;};
@@ -137,13 +147,13 @@ class BLEDisplay : public RemoteDisplay
 public:
     BLEDisplay() : RemoteDisplay() {}
     ~BLEDisplay() {}
-    int begin(uint32_t u32Capabilities, uint16_t width, uint16_t height);
+    int begin(uint16_t display_type);
     int fill(uint16_t u16Color);
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
     int setWindow(int x, int y, int w, int h);
     int writePixels(void *pixels, int count, uint8_t bDMA);
-    int drawRect(int x1, int y1, int x2, int y2, uint16_t u16Color, int bFilled);
+    int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     int setOrientation(int angle);

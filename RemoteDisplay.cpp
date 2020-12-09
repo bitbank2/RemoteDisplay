@@ -172,10 +172,10 @@ int BLEDisplay::BLESend(uint16_t *data, int count)
     return RD_SUCCESS;
 } /* BLESend() */
 
-int BLEDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height)
+int BLEDisplay::begin(uint16_t display_type)
 {
-    _width = width;
-    _height = _height;
+//    _width = width;
+//    _height = _height;
     _bConnected = false;
 #ifdef HAL_ESP32_HAL_H_
     pCharacteristicData = NULL;
@@ -201,7 +201,7 @@ int BLEDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height)
       }
     }
   }
-    if (pCharacteristicDate != nullptr)
+    if (pCharacteristicData != nullptr)
     {
         _bConnected = 1;
         return RD_SUCCESS;
@@ -274,13 +274,10 @@ int BLEDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height)
     }
     if (_bConnected)
     {
-        uint16_t u16Tmp[8];
+        uint16_t u16Tmp[4];
         u16Tmp[0] = RD_INIT;
-        u16Tmp[1] = (uint16_t)u32Capabilities;
-        u16Tmp[2] = (uint16_t)(u32Capabilities >> 16);
-        u16Tmp[3] = (uint16_t)width;
-        u16Tmp[4] = (uint16_t)height;
-        return BLESend(u16Tmp, 5); // send to the remote server
+        u16Tmp[1] = display_type;
+        return BLESend(u16Tmp, 2); // send to the remote server
     }
 #endif // Nano33
     
@@ -346,16 +343,16 @@ int BLEDisplay::writePixels(void *pixels, int count, uint8_t bDMA)
      return BLESendVarData(u16Tmp, 3, pixels); // send to the remote server
  } /* writePixels() */
 
-int BLEDisplay::drawRect(int x1, int y1, int x2, int y2, uint16_t u16Color, int bFilled)
+int BLEDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled)
 {
     uint16_t u16Tmp[8];
     if (!_bConnected)
         return RD_NOT_CONNECTED;
     u16Tmp[0] = RD_DRAW_RECT;
-    u16Tmp[1] = (uint16_t)x1;
-    u16Tmp[2] = (uint16_t)y1;
-    u16Tmp[3] = (uint16_t)x2;
-    u16Tmp[4] = (uint16_t)y2;
+    u16Tmp[1] = (uint16_t)x;
+    u16Tmp[2] = (uint16_t)y;
+    u16Tmp[3] = (uint16_t)w;
+    u16Tmp[4] = (uint16_t)h;
     u16Tmp[5] = u16Color;
     u16Tmp[6] = (uint16_t)bFilled;
     return BLESend(u16Tmp, 7); // send to the remote server
