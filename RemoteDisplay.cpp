@@ -148,7 +148,6 @@ bool connectToserver (BLEAddress pAddress)
 int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
 {
     uint8_t ucTemp[512];
-    int iSize = count * sizeof(uint16_t) + data[1];
     memcpy(ucTemp, data, count*sizeof(uint16_t)); // non-payload part
     memcpy(&ucTemp[count*sizeof(uint16_t)], varData, data[1]); // var payload
 #ifdef HAL_ESP32_HAL_H_
@@ -175,8 +174,7 @@ int BLEDisplay::BLESend(uint16_t *data, int count)
 
 int BLEDisplay::begin(uint16_t display_type)
 {
-//    _width = width;
-//    _height = _height;
+    _display_type = display_type;
     _bConnected = false;
 #ifdef HAL_ESP32_HAL_H_
     pCharacteristicData = NULL;
@@ -405,20 +403,29 @@ int BLEDisplay::setOrientation(int angle)
 //
 // UART implementation
 //
-int UARTDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height, uint32_t u32Speed)
+int UARTDisplay::begin(uint16_t u16DisplayType, uint32_t u32Speed)
 {
+    _display_type = u16DisplayType;
+    (void)u32Speed; // DEBUG
     return RD_SUCCESS;
 } /* begin() */
 
-int I2CDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height, uint8_t SDAPin, uint8_t SCLPin, uint8_t bBitBang, uint32_t u32Speed)
+int I2CDisplay::begin(uint16_t u16DisplayType, uint8_t SDAPin, uint8_t SCLPin, uint8_t bBitBang, uint32_t u32Speed)
 {
+    (void)u32Speed; // DEBUG
+    (void)SDAPin;
+    (void)SCLPin;
+    (void)bBitBang;
+
+    _display_type = u16DisplayType;
     return RD_SUCCESS;
 } /* begin() */
 
-int SPIDisplay::begin(uint16_t u16LCDType, uint16_t u16Flags, uint32_t u32Speed, uint8_t CS_Pin, uint8_t DC_Pin, uint8_t RESET_Pin, uint8_t LED_Pin)
+int SPIDisplay::begin(uint16_t u16DisplayType, uint16_t u16Flags, uint32_t u32Speed, uint8_t CS_Pin, uint8_t DC_Pin, uint8_t RESET_Pin, uint8_t LED_Pin)
 {
+    _display_type = u16DisplayType;
     // For now, assume SPI displays will be color LCD/OLEDs
-    if (spilcdInit(&_lcd, u16LCDType, u16Flags, u32Speed, CS_Pin, DC_Pin, RESET_Pin, LED_Pin, -1, -1, -1))
+    if (spilcdInit(&_lcd, u16DisplayType, u16Flags, u32Speed, CS_Pin, DC_Pin, RESET_Pin, LED_Pin, -1, -1, -1))
         return RD_INIT_FAILED;
     return RD_SUCCESS;
 } /* SPIDisplay:begin() */

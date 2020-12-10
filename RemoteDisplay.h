@@ -121,14 +121,14 @@ class RemoteDisplay
     ~RemoteDisplay() {}
     virtual int begin() {return 0;}
     virtual void shutdown() {}
-    virtual int fill(uint16_t u16Color) {return 0;};
-    virtual int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color) {return 0;};
-    virtual int drawPixel(int x, int y, uint16_t u16Color) {return 0;};
-    virtual int setWindow(int x, int y, int w, int h) {return 0;};
-    virtual int writePixels(void *pixels, int count, uint8_t bDMA) {return 0;};
-    virtual int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled) {return 0;};
-    virtual int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor) {return 0;};
-    virtual int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled) {return 0;};
+    virtual int fill(uint16_t u16Color);
+    virtual int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
+    virtual int drawPixel(int x, int y, uint16_t u16Color);
+    virtual int setWindow(int x, int y, int w, int h);
+    virtual int writePixels(void *pixels, int count, uint8_t bDMA);
+    virtual int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
+    virtual int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
+    virtual int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     virtual int setOrientation(int angle) {_orientation = angle; return RD_SUCCESS;};
     int getWidth() {return _width;};
     int getHeight() {return _height;};
@@ -136,6 +136,7 @@ class RemoteDisplay
     int getOrientation() {return _orientation;};
     
   protected:
+    int _display_type;
     int _width;
     int _height;
     int _orientation;
@@ -169,7 +170,7 @@ class UARTDisplay : public RemoteDisplay
 public:
     UARTDisplay() : RemoteDisplay() {}
     ~UARTDisplay() {}
-    int begin(uint32_t u32Capabilities, uint16_t width, uint16_t height, uint32_t u32Speed);
+    int begin(uint16_t u16DisplayType, uint32_t u32Speed);
 
 }; // class UARTDisplay
 
@@ -178,7 +179,7 @@ class I2CDisplay : public RemoteDisplay
 public:
     I2CDisplay() : RemoteDisplay() {}
     ~I2CDisplay() {}
-    int begin(uint32_t u32Capabilities, uint16_t width, uint16_t height, uint8_t SDAPin, uint8_t SCLPin, uint8_t bBitBang, uint32_t u32Speed);
+    int begin(uint16_t u16DisplayType, uint8_t SDAPin, uint8_t SCLPin, uint8_t bBitBang, uint32_t u32Speed);
     int fill(uint16_t u16Color);
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
