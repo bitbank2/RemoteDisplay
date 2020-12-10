@@ -21,6 +21,7 @@
 //===========================================================================
 //
 #include "RemoteDisplay.h"
+
 #ifdef HAL_ESP32_HAL_H_
 // Bluetooth support
 #include <BLEDevice.h>
@@ -253,7 +254,7 @@ int BLEDisplay::begin(uint16_t display_type)
           if (peripheral.discoverService("fea0"))
           {
              Serial.println("Discovered fea0 service");
-             prtService = peripheral.service("0000fea0-0000-1000-8000-00805f9b34fb"); // get the virtual display service
+             prtService = peripheral.service("0000fea0-0000-1000-8000-00805f9b34fb"); // get the remote display service
              if (prtService)
 //             if (1)
              {
@@ -414,7 +415,70 @@ int I2CDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height,
     return RD_SUCCESS;
 } /* begin() */
 
-int SPIDisplay::begin(uint32_t u32Capabilities, uint16_t width, uint16_t height, uint8_t CS_Pin, uint8_t DC_Pin, uint8_t RESET_Pin, uint8_t LED_Pin, uint32_t u32Speed)
+int SPIDisplay::begin(uint16_t u16LCDType, uint16_t u16Flags, uint32_t u32Speed, uint8_t CS_Pin, uint8_t DC_Pin, uint8_t RESET_Pin, uint8_t LED_Pin)
 {
+    // For now, assume SPI displays will be color LCD/OLEDs
+    if (spilcdInit(&_lcd, u16LCDType, u16Flags, u32Speed, CS_Pin, DC_Pin, RESET_Pin, LED_Pin, -1, -1, -1))
+        return RD_INIT_FAILED;
     return RD_SUCCESS;
-} /* begin() */
+} /* SPIDisplay:begin() */
+
+void SPIDisplay::shutdown()
+{
+    spilcdShutdown(&_lcd);
+} /* SPIDisplay::shutdown() */
+
+int SPIDisplay::fill(uint16_t u16Color)
+{
+    spilcdFill(&_lcd, u16Color, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::fill() */
+
+int SPIDisplay::drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color)
+{
+    spilcdDrawLine(&_lcd, x1, y1, x2, y2, u16Color, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::drawLine() */
+
+int SPIDisplay::drawPixel(int x, int y, uint16_t u16Color)
+{
+    spilcdSetPixel(&_lcd, x, y, u16Color, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::drawPixel() */
+
+int SPIDisplay::setWindow(int x, int y, int w, int h)
+{
+    spilcdSetPosition(&_lcd, x, y, w, h, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::setWindow() */
+
+int SPIDisplay::writePixels(void *pixels, int count, uint8_t bDMA)
+{
+    spilcdWriteDataBlock(&_lcd, (uint8_t *)pixels, count*2, (bDMA)? (DRAW_TO_LCD | DRAW_WITH_DMA) : DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::writePixels() */
+
+int SPIDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled)
+{
+    spilcdRectangle(&_lcd, x, y, w, h, u16Color, u16Color, bFilled, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::drawRect() */
+
+int SPIDisplay::drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor)
+{
+    spilcdWriteString(&_lcd, x, y, szText, u16FGColor, u16BGColor, u8Font, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::drawText() */
+
+int SPIDisplay::drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled)
+{
+    spilcdEllipse(&_lcd, x, y, r1, r2, u16Color, bFilled, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* SPIDisplay::drawEllipse() */
+
+int SPIDisplay::setOrientation(int angle)
+{
+    spilcdSetOrientation(&_lcd, angle);
+    _orientation = angle;
+    return RD_SUCCESS;
+} /* SPIDisplay::setOrientation() */
