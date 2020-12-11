@@ -145,9 +145,24 @@ bool connectToserver (BLEAddress pAddress)
 //
 // BLE implementation
 //
+uint16_t BLEDisplay::BLEReceive()
+{
+    uint16_t value = 0;
+#ifdef HAL_ESP32_HAL_H_
+    pCharacteristicData->readValue(&value, 2);
+#endif
+#ifdef ARDUINO_ARDUINO_NANO33BLE
+//    if (pCharacteristicData.valueUpdated()) {
+        pCharacteristicData.readValue(&value, 2);
+//    }
+#endif
+    return value;
+} /* BLEReceive() */
+
 int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
 {
     uint8_t ucTemp[512];
+    int iSize = count*2 + data[1];
     memcpy(ucTemp, data, count*sizeof(uint16_t)); // non-payload part
     memcpy(&ucTemp[count*sizeof(uint16_t)], varData, data[1]); // var payload
 #ifdef HAL_ESP32_HAL_H_
@@ -400,6 +415,12 @@ int BLEDisplay::setOrientation(int angle)
        _orientation = angle;
     return rc;
 } /* setOrientation() */
+
+uint16_t BLEDisplay::getButtons()
+{
+    return BLEReceive();
+} /* BLEDisplay::getButtons() */
+
 //
 // UART implementation
 //
@@ -410,7 +431,7 @@ int UARTDisplay::begin(uint16_t u16DisplayType, uint32_t u32Speed)
     return RD_SUCCESS;
 } /* begin() */
 
-int I2CDisplay::begin(uint16_t u16DisplayType, uint8_t SDAPin, uint8_t SCLPin, uint8_t bBitBang, uint32_t u32Speed)
+int I2CDisplay::begin(uint16_t u16DisplayType, int SDAPin, int SCLPin, int bBitBang, uint32_t u32Speed)
 {
     (void)u32Speed; // DEBUG
     (void)SDAPin;
@@ -421,9 +442,10 @@ int I2CDisplay::begin(uint16_t u16DisplayType, uint8_t SDAPin, uint8_t SCLPin, u
     return RD_SUCCESS;
 } /* begin() */
 
-int SPIDisplay::begin(uint16_t u16DisplayType, uint16_t u16Flags, uint32_t u32Speed, uint8_t CS_Pin, uint8_t DC_Pin, uint8_t RESET_Pin, uint8_t LED_Pin)
+int SPIDisplay::begin(uint16_t u16DisplayType, uint16_t u16Flags, uint32_t u32Speed, int CS_Pin, int DC_Pin, int RESET_Pin, int LED_Pin)
 {
     _display_type = u16DisplayType;
+    memset(&_lcd, 0, sizeof(_lcd));
     // For now, assume SPI displays will be color LCD/OLEDs
     if (spilcdInit(&_lcd, u16DisplayType, u16Flags, u32Speed, CS_Pin, DC_Pin, RESET_Pin, LED_Pin, -1, -1, -1))
         return RD_INIT_FAILED;
@@ -485,7 +507,17 @@ int SPIDisplay::drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int
 
 int SPIDisplay::setOrientation(int angle)
 {
-    spilcdSetOrientation(&_lcd, angle);
+    int i = LCD_ORIENTATION_0;
+    if (angle != 0 && angle != 90 && angle != 180 && angle != 270)
+        return RD_INVALID_PARAMETER;
+    if (angle == 0)
+        i = LCD_ORIENTATION_0;
+    else if (angle == 90)
+        i = LCD_ORIENTATION_90;
+    else if (angle == 180)
+        i = LCD_ORIENTATION_180;
+    else i = LCD_ORIENTATION_270;
+    spilcdSetOrientation(&_lcd, i);
     _orientation = angle;
     return RD_SUCCESS;
 } /* SPIDisplay::setOrientation() */
