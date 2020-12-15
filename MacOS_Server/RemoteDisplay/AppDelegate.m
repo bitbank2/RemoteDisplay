@@ -13,7 +13,7 @@ static CBMutableCharacteristic *characteristic1, *characteristic2, *characterist
 //void resetDisplay(void);
 static int serialFileDescriptor = -1;
 static dispatch_source_t readPollSource;
-
+static CBMutableService *includedService;
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
@@ -69,33 +69,36 @@ static dispatch_source_t readPollSource;
     
         if (CBManagerStatePoweredOn == peripheral.state) {
         
-        [peripheral startAdvertising:@{
-                                       CBAdvertisementDataLocalNameKey: @"RemoteDisplay",
-                                       CBAdvertisementDataServiceUUIDsKey: @[[CBUUID UUIDWithString:@"0000fea0-0000-1000-8000-00805f9b34fb"]]
-                      }];
-        
+
 //        NSData *zombie = [@"zombie" dataUsingEncoding:NSUTF8StringEncoding];
 //        CBMutableDescriptor *descriptor1 = [[CBMutableDescriptor alloc] initWithType:[CBUUID UUIDWithString:CBUUIDClientCharacteristicConfigurationString] value:@"0"];
             // Our main data characteristic
-        characteristic1 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea1-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse  | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead | CBCharacteristicPropertyIndicate value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
+        characteristic1 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0xFEA1"] properties:CBCharacteristicPropertyWriteWithoutResponse  | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead | CBCharacteristicPropertyIndicate value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 //        characteristic1.descriptors = @[descriptor1];
 
 //        NSData *ghost = [@"ghost" dataUsingEncoding:NSUTF8StringEncoding];
             // Our name characteristic (sets the window name)
-        characteristic2 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea2-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
+//        characteristic2 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea2-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 
-        characteristic3 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea3-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
+//        characteristic3 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea3-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 
-//        CBMutableService *includedService = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"A5B288C3-FC55-491F-AF38-27D2F7D7BF25"] primary:NO];
+//        includedService = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0000FEA0-0000-1000-8000-00805F9B34FB"] primary:YES];
 //        includedService.characteristics = @[includedCharacteristic];
 
-        self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0000fea0-0000-1000-8000-00805f9b34fb"] primary:YES];
+//            [self.peripheralManager addService:includedService];
+            
+        self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0xFEA0"] primary:YES];
             self.service.characteristics = @[characteristic1]; //, characteristic2, characteristic3];
-//        self.service.includedServices = @[includedService];
+//            self.service.includedServices = @[includedService];
 
-//        [self.peripheralManager addService:includedService];
         [self.peripheralManager addService:self.service];
-    } else {
+            
+            [peripheral startAdvertising:@{
+                                           CBAdvertisementDataLocalNameKey: @"RemoteDisplay",
+                                           CBAdvertisementDataServiceUUIDsKey: @[[CBUUID UUIDWithString:@"0xFEA0"]]
+                          }];
+
+        } else {
         [peripheral stopAdvertising];
         [peripheral removeAllServices];
     }

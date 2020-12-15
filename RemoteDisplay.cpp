@@ -42,6 +42,78 @@ BLEService *pService;
 BLERemoteCharacteristic *pCharacteristicData;
 #endif // HAL_ESP32_HAL_H_
 
+// Bluetooth support for Adafruit nrf52 boards
+#ifdef ARDUINO_NRF52_ADAFRUIT
+#include <bluefruit.h>
+#define myServiceUUID 0xFEA0
+#define myDataUUID 0xFEA1
+static int isConnected;
+BLEClientCharacteristic myDataChar(myDataUUID);
+BLEClientService myService(myServiceUUID);
+
+/**
+ * Callback invoked when an connection is established
+ * @param conn_handle
+ */
+static void connect_callback(uint16_t conn_handle)
+{
+//  Serial.println("Connected!");
+//  Serial.print("Discovering FEA0 Service ... ");
+ 
+  // If FEA0 is not found, disconnect and return
+  if ( !myService.discover(conn_handle) )
+  {
+//    Serial.println("Found NONE");
+    // disconect since we couldn't find our service
+    Bluefruit.disconnect(conn_handle);
+    return;
+  }
+ 
+  // Once FEA0 service is found, we continue to discover its characteristics
+  if ( !myDataChar.discover() )
+  {
+    // Data char is mandatory, if it is not found (valid), then disconnect
+//    Serial.println("Data characteristic is mandatory but not found");
+    Bluefruit.disconnect(conn_handle);
+    return;
+  }
+    isConnected = 1; // success!
+} /* connect_callback() */
+/**
+ * Callback invoked when a connection is dropped
+ * @param conn_handle
+ * @param reason
+ */
+static void disconnect_callback(uint16_t conn_handle, uint8_t reason)
+{
+  (void) conn_handle;
+  (void) reason;
+    isConnected = 0;
+//  Serial.println("Disconnected");
+} /* disconnect_callback() */
+
+static void scan_callback(ble_gap_evt_adv_report_t* report)
+{
+  if (Bluefruit.Scanner.checkReportForUuid(report, myServiceUUID))
+  {
+      Bluefruit.Scanner.stop();
+//      Serial.print("RemoteDisplay UUID detected. Connecting ... ");
+      Bluefruit.Central.connect(report);
+  }
+  else // keep looking
+  {
+    // For Softdevice v6: after received a report, scanner will be paused
+    // We need to call Scanner resume() to continue scanning
+    Bluefruit.Scanner.resume();
+  }
+} /* scan_callback() */
+
+static void notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len)
+{
+} /* notify_callback() */
+
+#endif // Adafruit nrf52
+
 // Bluetooth support for Nano 33 BLE
 #ifdef ARDUINO_ARDUINO_NANO33BLE
 #include <ArduinoBLE.h>
@@ -152,9 +224,10 @@ uint16_t BLEDisplay::BLEReceive()
     pCharacteristicData->readValue(&value, 2);
 #endif
 #ifdef ARDUINO_ARDUINO_NANO33BLE
-//    if (pCharacteristicData.valueUpdated()) {
-        pCharacteristicData.readValue(&value, 2);
-//    }
+    pCharacteristicData.readValue(&value, 2);
+#endif
+#ifdef ARDUINO_NRF52_ADAFRUIT
+    myDataChar.read((void *)&value, (uint16_t)2);
 #endif
     return value;
 } /* BLEReceive() */
@@ -171,6 +244,12 @@ int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
 #ifdef ARDUINO_ARDUINO_NANO33BLE
     pCharacteristicData.writeValue(ucTemp, iSize, false);
 #endif
+#ifdef ARDUINO_NRF52_ADAFRUIT
+    if (iSize > 20) // only write with response supports large packets
+        myDataChar.write_resp((const void *)ucTemp, (uint16_t)iSize);
+    else
+        myDataChar.write((const void *)ucTemp, (uint16_t)iSize);
+#endif
     return RD_SUCCESS;
 } /* BLESendVarData() */
 
@@ -183,14 +262,60 @@ int BLEDisplay::BLESend(uint16_t *data, int count)
 #ifdef ARDUINO_ARDUINO_NANO33BLE
     pCharacteristicData.writeValue((uint8_t *)data, (count+1)*sizeof(uint16_t), false);
 #endif
-
+#ifdef ARDUINO_NRF52_ADAFRUIT
+    myDataChar.write((const void *)data, (uint16_t)(count+1)*sizeof(uint16_t));
+#endif
     return RD_SUCCESS;
 } /* BLESend() */
 
 int BLEDisplay::begin(uint16_t display_type)
 {
     _display_type = display_type;
-    _bConnected = false;
+    isConnected = _bConnected = 0;
+#ifdef ARDUINO_NRF52_ADAFRUIT
+    // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
+    // SRAM usage required by SoftDevice will increase dramatically with number of connections
+    Bluefruit.begin(0, 1);
+    /* Set the device name */
+    Bluefruit.setName("Bluefruit52");
+    /* Set the LED interval for blinky pattern on BLUE LED */
+    Bluefruit.setConnLedInterval(250);
+    myService.begin(); // start my client service
+    // Initialize client characteristics of VirtualDisplay.
+    // Note: Client Chars will be added to the last service that is begin()ed.
+    myDataChar.setNotifyCallback(notify_callback);
+    myDataChar.begin();
+    // Callbacks for Central
+    Bluefruit.Central.setConnectCallback(connect_callback);
+    Bluefruit.Central.setDisconnectCallback(disconnect_callback);
+    /* Start Central Scanning
+     * - Enable auto scan if disconnected
+     * - Filter out packet with a min rssi
+     * - Interval = 100 ms, window = 50 ms
+     * - Use active scan (used to retrieve the optional scan response adv packet)
+     * - Start(0) = will scan forever since no timeout is given
+     */
+    Bluefruit.Scanner.setRxCallback(scan_callback);
+    Bluefruit.Scanner.restartOnDisconnect(true);
+//    Bluefruit.Scanner.filterRssi(-72);
+    Bluefruit.Scanner.filterUuid(myServiceUUID);
+    Bluefruit.Scanner.setInterval(160, 80);       // in units of 0.625 ms
+    Bluefruit.Scanner.useActiveScan(true);        // Request scan response data
+    Bluefruit.Scanner.start(0);                   // 0 = Don't stop scanning after n seconds
+    {
+        int iTimeout = 0; // scan / try for up to 10 seconds
+        while (iTimeout < 10 && isConnected == 0)
+        {
+            iTimeout++;
+            delay(1000);
+        }
+        if (isConnected == 1)
+        {
+            _bConnected = 1;
+            delay(2000); // wait for things to settle
+        }
+    }
+#endif // Adafruit nrf52
 #ifdef HAL_ESP32_HAL_H_
     pCharacteristicData = NULL;
     BLEDevice::init("ESP32BLE");
@@ -286,6 +411,9 @@ int BLEDisplay::begin(uint16_t display_type)
           }
        }
     }
+#endif // Nano33
+    
+#if defined( HAL_ESP32_HAL_H_ ) || defined( ARDUINO_ARDUINO_NANO33BLE ) || defined( ARDUINO_NRF52_ADAFRUIT )
     if (_bConnected)
     {
         uint16_t u16Tmp[4];
@@ -293,10 +421,11 @@ int BLEDisplay::begin(uint16_t display_type)
         u16Tmp[1] = display_type;
         return BLESend(u16Tmp, 2); // send to the remote server
     }
-#endif // Nano33
     
     return RD_NOT_CONNECTED;
+#endif
 } /* begin() */
+
 int BLEDisplay::fill(uint16_t u16Color)
 {
     uint16_t u16Tmp[4];
@@ -378,14 +507,14 @@ int BLEDisplay::drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u1
      if (!_bConnected)
          return RD_NOT_CONNECTED;
      u16Tmp[0] = RD_DRAW_TEXT;
-     u16Tmp[1] = strlen(szText); // payload size in bytes
+     u16Tmp[1] = strlen(szText)+1; // payload size in bytes
      u16Tmp[2] = (uint16_t)x;
      u16Tmp[3] = (uint16_t)y;
      u16Tmp[4] = (uint16_t)u8Font;
      u16Tmp[5] = u16FGColor;
      u16Tmp[6] = u16BGColor;
      return BLESendVarData(u16Tmp, 7, szText); // send to the remote server
- } /* writePixels() */
+ } /* drawText() */
 
 int BLEDisplay::drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled)
 {
@@ -424,13 +553,166 @@ uint16_t BLEDisplay::getButtons()
 //
 // UART implementation
 //
-int UARTDisplay::begin(uint16_t u16DisplayType, uint32_t u32Speed)
+int UARTDisplay::UARTSendVarData(uint16_t *data, int count, void *varData)
 {
-    _display_type = u16DisplayType;
-    (void)u32Speed; // DEBUG
+    uint8_t ucTemp[512];
+    int iSize = count*2 + data[1];
+    memcpy(ucTemp, data, count*sizeof(uint16_t)); // non-payload part
+    memcpy(&ucTemp[count*sizeof(uint16_t)], varData, data[1]); // var payload
+    // Serial needs to know the length first since it buffers the read
+    Serial.write(0xff); // start with a couple of sync bytes
+    Serial.write(0xff);
+    Serial.write((uint8_t)iSize); // low byte of length
+    Serial.write((uint8_t)(iSize >> 8)); // high byte
+    Serial.write(ucTemp, iSize);
+    Serial.flush(); // wait for transmission to complete
     return RD_SUCCESS;
-} /* begin() */
+} /* UARTSendVarData() */
 
+int UARTDisplay::UARTSend(uint16_t *data, int count)
+{
+    data[count] = crc_16((uint8_t *)data, count * sizeof(uint16_t));
+    // Serial needs to know the length first since it buffers the read
+    Serial.write(0xff); // start with a couple of sync bytes
+    Serial.write(0xff);
+    Serial.write(count * 2); // low byte of length
+    Serial.write((uint8_t)0); // high byte
+    Serial.write((uint8_t *)data, (count+1)*sizeof(uint16_t));
+    Serial.flush(); // wait for transmission to complete
+    return RD_SUCCESS;
+} /* BLESend() */
+
+int UARTDisplay::begin(uint16_t u16DisplayType)
+{
+    uint16_t u16Tmp[4];
+
+    _display_type = u16DisplayType;
+    Serial.begin(115200); // this baud rate should work for all situations
+    while (!Serial) {delay(10);}; // wait until fully initialized
+    // Send the remote server the type of display we want
+    u16Tmp[0] = RD_INIT;
+    u16Tmp[1] = u16DisplayType;
+    return UARTSend(u16Tmp, 2);
+} /* UARTDisplay::begin() */
+
+void UARTDisplay::shutdown()
+{
+} /* UARTDisplay::shutdown() */
+
+int UARTDisplay::fill(uint16_t u16Color)
+{
+    uint16_t u16Tmp[4];
+    u16Tmp[0] = RD_FILL;
+    u16Tmp[1] = u16Color;
+    return UARTSend(u16Tmp, 2); // send to the remote server
+}
+int UARTDisplay::drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color)
+{
+    uint16_t u16Tmp[8];
+    u16Tmp[0] = RD_DRAW_LINE;
+    u16Tmp[1] = (uint16_t)x1;
+    u16Tmp[2] = (uint16_t)y1;
+    u16Tmp[3] = (uint16_t)x2;
+    u16Tmp[4] = (uint16_t)y2;
+    u16Tmp[5] = u16Color;
+    return UARTSend(u16Tmp, 6); // send to the remote server
+} /* UARTDisplay::drawLine() */
+
+int UARTDisplay::drawPixel(int x, int y, uint16_t u16Color)
+{
+    uint16_t u16Tmp[8];
+    u16Tmp[0] = RD_DRAW_PIXEL;
+    u16Tmp[1] = (uint16_t)x;
+    u16Tmp[2] = (uint16_t)y;
+    u16Tmp[3] = u16Color;
+    return UARTSend(u16Tmp, 4); // send to the remote server
+} /* UARTDisplay::drawPixel() */
+
+int UARTDisplay::setWindow(int x, int y, int w, int h)
+{
+    uint16_t u16Tmp[8];
+    u16Tmp[0] = RD_SET_WINDOW;
+    u16Tmp[1] = (uint16_t)x;
+    u16Tmp[2] = (uint16_t)y;
+    u16Tmp[3] = (uint16_t)w;
+    u16Tmp[4] = (uint16_t)h;
+    return UARTSend(u16Tmp, 5); // send to the remote server
+} /* UARTDisplay::setWindow() */
+
+int UARTDisplay::writePixels(void *pixels, int count, uint8_t bDMA)
+{
+    uint16_t u16Tmp[8];
+    u16Tmp[0] = RD_WRITE_PIXELS;
+    u16Tmp[1] = (uint16_t)count*2; // payload size in bytes
+    u16Tmp[2] = (uint16_t)bDMA;
+    return UARTSendVarData(u16Tmp, 3, pixels); // send to the remote server
+} /* UARTDisplay::writePixels() */
+
+int UARTDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled)
+{
+    uint16_t u16Tmp[8];
+    u16Tmp[0] = RD_DRAW_RECT;
+    u16Tmp[1] = (uint16_t)x;
+    u16Tmp[2] = (uint16_t)y;
+    u16Tmp[3] = (uint16_t)w;
+    u16Tmp[4] = (uint16_t)h;
+    u16Tmp[5] = u16Color;
+    u16Tmp[6] = (uint16_t)bFilled;
+    return UARTSend(u16Tmp, 7); // send to the remote server
+} /* UARTDisplay::drawRect() */
+
+int UARTDisplay::drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor)
+{
+     uint16_t u16Tmp[8];
+     u16Tmp[0] = RD_DRAW_TEXT;
+     u16Tmp[1] = strlen(szText); // payload size in bytes
+     u16Tmp[2] = (uint16_t)x;
+     u16Tmp[3] = (uint16_t)y;
+     u16Tmp[4] = (uint16_t)u8Font;
+     u16Tmp[5] = u16FGColor;
+     u16Tmp[6] = u16BGColor;
+     return UARTSendVarData(u16Tmp, 7, szText); // send to the remote server
+ } /* UARTDisplay::drawText() */
+
+int UARTDisplay::drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled)
+{
+    uint16_t u16Tmp[8];
+    u16Tmp[0] = RD_DRAW_ELLIPSE;
+    u16Tmp[1] = (uint16_t)x;
+    u16Tmp[2] = (uint16_t)y;
+    u16Tmp[3] = (uint16_t)r1;
+    u16Tmp[4] = (uint16_t)r2;
+    u16Tmp[5] = u16Color;
+    u16Tmp[6] = bFilled;
+    return UARTSend(u16Tmp, 7); // send to the remote server
+} /* UARTDisplay::drawEllipse() */
+
+int UARTDisplay::setOrientation(int angle)
+{
+    int rc;
+    uint16_t u16Tmp[4];
+    u16Tmp[0] = RD_SET_ORIENTATION;
+    u16Tmp[1] = (uint16_t)angle;
+    rc = UARTSend(u16Tmp, 2); // send to the remote server
+    if (rc == RD_SUCCESS)
+       _orientation = angle;
+    return rc;
+} /* UARTDisplay::setOrientation() */
+
+uint16_t UARTDisplay::getButtons()
+{
+    // Need to explicitly ask for the buttons over serial
+    uint16_t u16Tmp[4];
+    uint8_t buttons = 0;
+    u16Tmp[0] = RD_GET_BUTTONS;
+    UARTSend(u16Tmp, 1); // send to the remote server
+    buttons = Serial.read(); // get 1 byte returned
+    return buttons;
+
+} /* UARTDisplay::getButtons() */
+//
+// I2C Display implementation
+//
 int I2CDisplay::begin(uint16_t u16DisplayType, int SDAPin, int SCLPin, int bBitBang, uint32_t u32Speed)
 {
     (void)u32Speed; // DEBUG
@@ -521,3 +803,14 @@ int SPIDisplay::setOrientation(int angle)
     _orientation = angle;
     return RD_SUCCESS;
 } /* SPIDisplay::setOrientation() */
+
+uint16_t SPIDisplay::getButtons()
+{
+    uint16_t buttons = 0;
+
+    for (int i=0; i<_button_count; i++)
+        if (digitalRead(_buttons[i]) == _button_active)
+            buttons |= (1 << i);
+    
+    return buttons;
+} /* SPIDisplay::getButtons()*/
