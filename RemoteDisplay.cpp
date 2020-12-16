@@ -27,9 +27,9 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-static BLEUUID serviceUUID("0000fea0-0000-1000-8000-00805f9b34fb"); //Service
-static BLEUUID dataUUID("0000fea1-0000-1000-8000-00805f9b34fb"); // data characteristic
-static BLEUUID nameUUID("0000fea2-0000-1000-8000-00805f9b34fb"); // name characteristic
+static BLEUUID serviceUUID("0000fea0-1234-1000-8000-00805f9b34fb"); //Service
+static BLEUUID dataUUID("0000fea1-1234-1000-8000-00805f9b34fb"); // data characteristic
+//static BLEUUID nameUUID("0000fea2-0000-1000-8000-00805f9b34fb"); // name characteristic
 std::string VD_BLE_Name = "RemoteDisplay";
 char Scanned_BLE_Name[32];
 String Scanned_BLE_Address;
@@ -45,8 +45,10 @@ BLERemoteCharacteristic *pCharacteristicData;
 // Bluetooth support for Adafruit nrf52 boards
 #ifdef ARDUINO_NRF52_ADAFRUIT
 #include <bluefruit.h>
-#define myServiceUUID 0xFEA0
-#define myDataUUID 0xFEA1
+const uint8_t myServiceUUID[16] = {0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x34, 0x12, 0xa0, 0xfe, 0x00, 0x00};
+const uint8_t myDataUUID[16] = {0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x34, 0x12, 0xa1, 0xfe, 0x00, 0x00};
+//#define myServiceUUID 0xFEA0
+//#define myDataUUID 0xFEA1
 static int isConnected;
 BLEClientCharacteristic myDataChar(myDataUUID);
 BLEClientService myService(myServiceUUID);
@@ -221,7 +223,7 @@ uint16_t BLEDisplay::BLEReceive()
 {
     uint16_t value = 0;
 #ifdef HAL_ESP32_HAL_H_
-    pCharacteristicData->readValue(&value, 2);
+    value = pCharacteristicData->readUInt16();
 #endif
 #ifdef ARDUINO_ARDUINO_NANO33BLE
     pCharacteristicData.readValue(&value, 2);
@@ -271,8 +273,8 @@ int BLEDisplay::BLESend(uint16_t *data, int count)
 int BLEDisplay::begin(uint16_t display_type)
 {
     _display_type = display_type;
-    isConnected = _bConnected = 0;
 #ifdef ARDUINO_NRF52_ADAFRUIT
+    isConnected = _bConnected = 0;
     // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
     // SRAM usage required by SoftDevice will increase dramatically with number of connections
     Bluefruit.begin(0, 1);
@@ -389,15 +391,16 @@ int BLEDisplay::begin(uint16_t display_type)
        {
           Serial.println("Connected!");
           peripheral.discoverAttributes();
-          if (peripheral.discoverService("fea0"))
+           Serial.println("discovered attributes");
+          if (peripheral.discoverService("0000fea0-1234-1000-8000-00805f9b34fb"))
           {
              Serial.println("Discovered fea0 service");
-             prtService = peripheral.service("0000fea0-0000-1000-8000-00805f9b34fb"); // get the remote display service
+             prtService = peripheral.service("0000fea0-1234-1000-8000-00805f9b34fb"); // get the remote display service
              if (prtService)
 //             if (1)
              {
                 Serial.println("Got the service");
-                pCharacteristicData = prtService.characteristic("0000fea1-0000-1000-8000-00805f9b34fb");
+                pCharacteristicData = prtService.characteristic("0000fea1-1234-1000-8000-00805f9b34fb");
                 if (pCharacteristicData)
                 {
                     Serial.println("Got the characteristics");

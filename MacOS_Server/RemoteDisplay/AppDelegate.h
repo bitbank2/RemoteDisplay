@@ -21,6 +21,6 @@
 
 @property (nonatomic, strong) CBPeripheralManager *peripheralManager;
 @property (nonatomic, strong) CBMutableService *service;
-
+@property (nonatomic, strong) CBMutableService *service2;
 @end
 

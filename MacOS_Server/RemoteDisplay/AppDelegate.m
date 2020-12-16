@@ -69,16 +69,20 @@ static CBMutableService *includedService;
     
         if (CBManagerStatePoweredOn == peripheral.state) {
         
+            [peripheral startAdvertising:@{
+                                           CBAdvertisementDataLocalNameKey: @"RemoteDisplay",
+                                           CBAdvertisementDataServiceUUIDsKey: @[[CBUUID UUIDWithString:@"0000fea0-1234-1000-8000-00805f9b34fb"]]
+                          }];
 
 //        NSData *zombie = [@"zombie" dataUsingEncoding:NSUTF8StringEncoding];
 //        CBMutableDescriptor *descriptor1 = [[CBMutableDescriptor alloc] initWithType:[CBUUID UUIDWithString:CBUUIDClientCharacteristicConfigurationString] value:@"0"];
             // Our main data characteristic
-        characteristic1 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0xFEA1"] properties:CBCharacteristicPropertyWriteWithoutResponse  | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead | CBCharacteristicPropertyIndicate value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
+        characteristic1 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea1-1234-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse  | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead | CBCharacteristicPropertyIndicate value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 //        characteristic1.descriptors = @[descriptor1];
 
 //        NSData *ghost = [@"ghost" dataUsingEncoding:NSUTF8StringEncoding];
             // Our name characteristic (sets the window name)
-//        characteristic2 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea2-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
+        characteristic2 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea1-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 
 //        characteristic3 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea3-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 
@@ -87,16 +91,19 @@ static CBMutableService *includedService;
 
 //            [self.peripheralManager addService:includedService];
             
-        self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0xFEA0"] primary:YES];
-            self.service.characteristics = @[characteristic1]; //, characteristic2, characteristic3];
-//            self.service.includedServices = @[includedService];
-
-        [self.peripheralManager addService:self.service];
+//            self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0xFEA0"] primary:YES];
+        self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0000fea0-1234-1000-8000-00805f9b34fb"] primary:YES];
+        self.service.characteristics = @[characteristic1]; //, characteristic3];
+//        [self.peripheralManager addService:self.service];
             
-            [peripheral startAdvertising:@{
-                                           CBAdvertisementDataLocalNameKey: @"RemoteDisplay",
-                                           CBAdvertisementDataServiceUUIDsKey: @[[CBUUID UUIDWithString:@"0xFEA0"]]
-                          }];
+//            self.service2 = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0000fea0-0000-1000-8000-00805f9b34fb"] primary:NO];
+//                self.service2.characteristics = @[characteristic2];
+//            [self.peripheralManager addService:self.service2];
+            
+//            self.service.includedServices = @[self.service2];
+            
+            [self.peripheralManager addService:self.service];
+            
 
         } else {
         [peripheral stopAdvertising];
@@ -125,16 +132,16 @@ didReceiveWriteRequests:(NSArray<CBATTRequest *> *)requests;
 {
     for (CBATTRequest *request in requests) {
         NSData *data = [request value];
-        if (request.characteristic.UUID == characteristic1.UUID || request.characteristic.UUID == characteristic3.UUID)
+        if (request.characteristic.UUID == characteristic1.UUID || request.characteristic.UUID == characteristic2.UUID)
         {
             [ViewController processBytes:data];
         }
-        else
-        { // set the label name from this one
-            NSString *clientName = [[NSString alloc]  initWithBytes:[data bytes]
-            length:[data length] encoding: NSUTF8StringEncoding];
-            [ViewController showText:clientName];
-        }
+//        else
+//        { // set the label name from this one
+//            NSString *clientName = [[NSString alloc]  initWithBytes:[data bytes]
+//            length:[data length] encoding: NSUTF8StringEncoding];
+//            [ViewController showText:clientName];
+//        }
         // This function can handle writes with no response and writes which require a response
         // if no response is given, the client's waiting will time out / error
         // We always give a successful response to our characteristic for clients

@@ -141,6 +141,7 @@ class RemoteDisplay
     virtual int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     virtual int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     virtual int setOrientation(int angle) {_orientation = angle; return RD_SUCCESS;};
+    virtual int dumpBuffer(uint8_t * buffer);
     int getWidth() {return _width;};
     int getHeight() {return _height;};
     int getBpp() {return _bpp;};
@@ -175,6 +176,7 @@ public:
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     int setOrientation(int angle);
+    int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 private:
     int BLESendVarData(uint16_t *data, int count, void *varData);
@@ -200,6 +202,7 @@ public:
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     int setOrientation(int angle);
+    int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 private:
     int UARTSendVarData(uint16_t *data, int count, void *varData);
@@ -224,6 +227,7 @@ public:
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     int setOrientation(int angle);
+    int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 
 }; // class I2CDisplay
@@ -246,6 +250,7 @@ public:
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     int setOrientation(int angle);
+    int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 private:
     SPILCD _lcd;

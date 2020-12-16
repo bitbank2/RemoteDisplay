@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="17506" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="17701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="17506"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="17701"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -686,7 +686,7 @@
             <objects>
                 <windowController id="B8D-0N-5wS" sceneMemberID="viewController">
                     <window key="window" title="Remote Display" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="IQv-IB-iLA">
-                        <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES"/>
+                        <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
                         <rect key="contentRect" x="196" y="240" width="480" height="270"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
@@ -710,14 +710,12 @@
                         <rect key="frame" x="0.0" y="0.0" width="418" height="311"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
-                            <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1zb-Pf-h1d">
-                                <rect key="frame" x="49" y="8" width="320" height="240"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="1zb-Pf-h1d">
+                                <rect key="frame" x="49" y="20" width="320" height="240"/>
                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" id="e08-bx-UGt"/>
                             </imageView>
-                            <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="9Zg-ll-zuu">
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9Zg-ll-zuu">
                                 <rect key="frame" x="13" y="277" width="86" height="32"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <buttonCell key="cell" type="push" title="Button 0" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="lHO-Rv-Yup">
                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                     <font key="font" metaFont="system"/>
@@ -726,20 +724,8 @@
                                     <action selector="Button0_Pressed:" target="XfG-lQ-9wD" id="v54-ad-sPY"/>
                                 </connections>
                             </button>
-                            <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="SNg-2u-CaY">
-                                <rect key="frame" x="168" y="277" width="84" height="32"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <buttonCell key="cell" type="push" title="Button 1" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="60f-Iw-umz">
-                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
-                                    <font key="font" metaFont="system"/>
-                                </buttonCell>
-                                <connections>
-                                    <action selector="Button1_Pressed:" target="XfG-lQ-9wD" id="M3y-e7-t4s"/>
-                                </connections>
-                            </button>
-                            <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sh7-Hd-GoJ">
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="sh7-Hd-GoJ">
                                 <rect key="frame" x="319" y="277" width="86" height="32"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <buttonCell key="cell" type="push" title="Button 2" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="wrf-Ru-0rR">
                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                     <font key="font" metaFont="system"/>
@@ -748,7 +734,37 @@
                                     <action selector="Button2_Pressed:" target="XfG-lQ-9wD" id="AeH-Dm-Jef"/>
                                 </connections>
                             </button>
+                            <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="nJs-dm-Nge">
+                                <rect key="frame" x="49" y="24" width="320" height="240"/>
+                                <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" id="TrG-44-ntA"/>
+                            </imageView>
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="SNg-2u-CaY">
+                                <rect key="frame" x="167" y="277" width="84" height="32"/>
+                                <buttonCell key="cell" type="push" title="Button 1" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="60f-Iw-umz">
+                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
+                                    <font key="font" metaFont="system"/>
+                                </buttonCell>
+                                <connections>
+                                    <action selector="Button1_Pressed:" target="XfG-lQ-9wD" id="M3y-e7-t4s"/>
+                                </connections>
+                            </button>
                         </subviews>
+                        <constraints>
+                            <constraint firstItem="sh7-Hd-GoJ" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="7" id="2m4-dd-r0W"/>
+                            <constraint firstAttribute="bottom" secondItem="nJs-dm-Nge" secondAttribute="bottom" constant="24" id="9iN-U8-rSp"/>
+                            <constraint firstItem="nJs-dm-Nge" firstAttribute="trailing" secondItem="1zb-Pf-h1d" secondAttribute="trailing" id="EnJ-Aq-JHI"/>
+                            <constraint firstItem="nJs-dm-Nge" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="49" id="GP1-cO-Jcm"/>
+                            <constraint firstItem="nJs-dm-Nge" firstAttribute="top" secondItem="9Zg-ll-zuu" secondAttribute="bottom" constant="20" symbolic="YES" id="Gfe-FF-o6Y"/>
+                            <constraint firstAttribute="trailing" secondItem="sh7-Hd-GoJ" secondAttribute="trailing" constant="20" symbolic="YES" id="MeX-QA-fhG"/>
+                            <constraint firstItem="nJs-dm-Nge" firstAttribute="centerX" secondItem="SNg-2u-CaY" secondAttribute="centerX" id="NCJ-wF-o2s"/>
+                            <constraint firstItem="SNg-2u-CaY" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="RZX-h3-n9M"/>
+                            <constraint firstItem="9Zg-ll-zuu" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="Vt7-Sg-t3a"/>
+                            <constraint firstItem="1zb-Pf-h1d" firstAttribute="top" secondItem="9Zg-ll-zuu" secondAttribute="bottom" constant="24" id="iK6-mt-Kw4"/>
+                            <constraint firstAttribute="bottom" secondItem="1zb-Pf-h1d" secondAttribute="bottom" constant="20" symbolic="YES" id="p38-Hy-l19"/>
+                            <constraint firstItem="9Zg-ll-zuu" firstAttribute="baseline" secondItem="SNg-2u-CaY" secondAttribute="baseline" id="raT-jB-AFH"/>
+                            <constraint firstItem="nJs-dm-Nge" firstAttribute="leading" secondItem="1zb-Pf-h1d" secondAttribute="leading" id="uzg-Lx-yod"/>
+                            <constraint firstItem="SNg-2u-CaY" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="7" id="yTf-os-yQw"/>
+                        </constraints>
                     </view>
                     <connections>
                         <outlet property="Button0" destination="9Zg-ll-zuu" id="JQ9-wH-I0e"/>
