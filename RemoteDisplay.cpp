@@ -248,7 +248,9 @@ int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
 #endif
 #ifdef ARDUINO_NRF52_ADAFRUIT
     if (iSize > 20) // only write with response supports large packets
+    {
         myDataChar.write_resp((const void *)ucTemp, (uint16_t)iSize);
+    }
     else
         myDataChar.write((const void *)ucTemp, (uint16_t)iSize);
 #endif
@@ -478,15 +480,28 @@ int BLEDisplay::setWindow(int x, int y, int w, int h)
     return BLESend(u16Tmp, 5); // send to the remote server
 } /* setWindow() */
 
-int BLEDisplay::writePixels(void *pixels, int count, uint8_t bDMA)
+int BLEDisplay::writePixels(uint16_t *pixels, int count, uint8_t bDMA)
 {
      uint16_t u16Tmp[8];
      if (!_bConnected)
          return RD_NOT_CONNECTED;
-     u16Tmp[0] = RD_WRITE_PIXELS;
-     u16Tmp[1] = (uint16_t)count*2; // payload size in bytes
-     u16Tmp[2] = (uint16_t)bDMA;
-     return BLESendVarData(u16Tmp, 3, pixels); // send to the remote server
+     while (count >= 64) // don't send more than 64 at a time
+     {
+         u16Tmp[0] = RD_WRITE_PIXELS;
+         u16Tmp[1] = 128; // payload size in bytes
+         u16Tmp[2] = (uint16_t)bDMA;
+         BLESendVarData(u16Tmp, 3, (void *)pixels); // send to the remote server
+         pixels += 64;
+         count -= 64;
+     }
+    if (count > 0)
+    {
+        u16Tmp[0] = RD_WRITE_PIXELS;
+        u16Tmp[1] = count*2; // payload size in bytes
+        u16Tmp[2] = (uint16_t)bDMA;
+        BLESendVarData(u16Tmp, 3, (void *)pixels); // send to the remote
+    }
+    return RD_SUCCESS;
  } /* writePixels() */
 
 int BLEDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled)
@@ -552,7 +567,11 @@ uint16_t BLEDisplay::getButtons()
 {
     return BLEReceive();
 } /* BLEDisplay::getButtons() */
-
+int BLEDisplay::dumpBuffer(uint8_t * buffer)
+{
+    // not implemented yet
+    (void)buffer;
+} /* BLEDisplay::dumpBuffer() */
 //
 // UART implementation
 //
@@ -642,7 +661,7 @@ int UARTDisplay::setWindow(int x, int y, int w, int h)
     return UARTSend(u16Tmp, 5); // send to the remote server
 } /* UARTDisplay::setWindow() */
 
-int UARTDisplay::writePixels(void *pixels, int count, uint8_t bDMA)
+int UARTDisplay::writePixels(uint16_t *pixels, int count, uint8_t bDMA)
 {
     uint16_t u16Tmp[8];
     u16Tmp[0] = RD_WRITE_PIXELS;
@@ -766,7 +785,7 @@ int SPIDisplay::setWindow(int x, int y, int w, int h)
     return RD_SUCCESS;
 } /* SPIDisplay::setWindow() */
 
-int SPIDisplay::writePixels(void *pixels, int count, uint8_t bDMA)
+int SPIDisplay::writePixels(uint16_t *pixels, int count, uint8_t bDMA)
 {
     spilcdWriteDataBlock(&_lcd, (uint8_t *)pixels, count*2, (bDMA)? (DRAW_TO_LCD | DRAW_WITH_DMA) : DRAW_TO_LCD);
     return RD_SUCCESS;

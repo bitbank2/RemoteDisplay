@@ -136,7 +136,7 @@ class RemoteDisplay
     virtual int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     virtual int drawPixel(int x, int y, uint16_t u16Color);
     virtual int setWindow(int x, int y, int w, int h);
-    virtual int writePixels(void *pixels, int count, uint8_t bDMA);
+    virtual int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     virtual int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     virtual int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     virtual int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
@@ -171,7 +171,7 @@ public:
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
     int setWindow(int x, int y, int w, int h);
-    int writePixels(void *pixels, int count, uint8_t bDMA);
+    int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
@@ -197,7 +197,7 @@ public:
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
     int setWindow(int x, int y, int w, int h);
-    int writePixels(void *pixels, int count, uint8_t bDMA);
+    int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
@@ -222,7 +222,7 @@ public:
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
     int setWindow(int x, int y, int w, int h);
-    int writePixels(void *pixels, int count, uint8_t bDMA);
+    int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
@@ -245,7 +245,7 @@ public:
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
     int setWindow(int x, int y, int w, int h);
-    int writePixels(void *pixels, int count, uint8_t bDMA);
+    int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);

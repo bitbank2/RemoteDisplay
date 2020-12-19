@@ -21,6 +21,8 @@ static int original_width, original_height;
 static int bpp = 16;
 static uint8_t contrast = 255;
 static int orientation = 0;
+static int window_x, window_w, window_y, window_h;
+static int cursor_x, cursor_y;
 
 @implementation ViewController
 
@@ -1018,10 +1020,12 @@ int writeDisplay(unsigned char *p, int len)
             iCenterY = pu16[2];
             iRadiusX = pu16[3];
             iRadiusY = pu16[4];
-            u32Color = convertColor(pu16[5]);
-            bFilled = pu16[6];
-
-            drawEllipse(iCenterX, iCenterY, iRadiusX, iRadiusY, u32Color, bFilled);
+            if (iRadiusX > 0 && iRadiusY > 0)
+            {
+                u32Color = convertColor(pu16[5]);
+                bFilled = pu16[6];
+                drawEllipse(iCenterX, iCenterY, iRadiusX, iRadiusY, u32Color, bFilled);
+            }
         }
             break;
         case RD_DRAW_ICON:
@@ -1040,6 +1044,27 @@ int writeDisplay(unsigned char *p, int len)
         }
             break;
         case RD_WRITE_PIXELS:
+        {
+            int iCount = pu16[1];
+            uint16_t *s = &pu16[3];
+            uint32_t u32Color, *pu32 = (uint32_t *)ucBitmap;
+            while (iCount > 0 && cursor_x < width && cursor_y < height)
+            {
+                u32Color = convertColor(*s++);
+                pu32[(cursor_y * width) + cursor_x] = u32Color;
+                cursor_x++;
+                if (cursor_x >= window_x + window_w)
+                {
+                    cursor_x = window_x;
+                    cursor_y++;
+                    if (cursor_y >= window_y + window_h)
+                    {
+                        cursor_y = window_y;
+                    }
+                }
+                iCount -= 2; // 2 bytes per pixel
+            }
+        }
             break;
         case RD_FILL:
             u16Color = pu16[1];
@@ -1061,6 +1086,12 @@ int writeDisplay(unsigned char *p, int len)
         }
             break;
         case RD_SET_WINDOW:
+            window_x = pu16[1];
+            window_y = pu16[2];
+            window_w = pu16[3];
+            window_h = pu16[4];
+            cursor_x = window_x;
+            cursor_y = window_y;
             break;
         case RD_SET_ORIENTATION:
         {
