@@ -75,13 +75,14 @@ static CBMutableService *includedService;
                           }];
 
 //        NSData *zombie = [@"zombie" dataUsingEncoding:NSUTF8StringEncoding];
-//        CBMutableDescriptor *descriptor1 = [[CBMutableDescriptor alloc] initWithType:[CBUUID UUIDWithString:CBUUIDClientCharacteristicConfigurationString] value:@"0"];
+        CBMutableDescriptor *descriptor1 = [[CBMutableDescriptor alloc] initWithType:[CBUUID UUIDWithString:CBUUIDClientCharacteristicConfigurationString] value:@"0"];
             // Our main data characteristic
         characteristic1 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea1-1234-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse  | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead | CBCharacteristicPropertyIndicate value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
-//        characteristic1.descriptors = @[descriptor1];
+        characteristic1.descriptors = @[descriptor1];
 
 //        NSData *ghost = [@"ghost" dataUsingEncoding:NSUTF8StringEncoding];
             // Our name characteristic (sets the window name)
+            // Needed to create this additional characteristic with an invalid UUID to make it work on ESP32
         characteristic2 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea1-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
 
 //        characteristic3 = [[CBMutableCharacteristic alloc] initWithType:[CBUUID UUIDWithString:@"0000fea3-0000-1000-8000-00805f9b34fb"] properties:CBCharacteristicPropertyWriteWithoutResponse | CBCharacteristicPropertyWrite | CBCharacteristicPropertyRead value:nil permissions:CBAttributePermissionsWriteable | CBAttributePermissionsReadable];
@@ -93,7 +94,7 @@ static CBMutableService *includedService;
             
 //            self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0xFEA0"] primary:YES];
         self.service = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0000fea0-1234-1000-8000-00805f9b34fb"] primary:YES];
-        self.service.characteristics = @[characteristic1]; //, characteristic3];
+        self.service.characteristics = @[characteristic1, characteristic2];
 //        [self.peripheralManager addService:self.service];
             
 //            self.service2 = [[CBMutableService alloc] initWithType:[CBUUID UUIDWithString:@"0000fea0-0000-1000-8000-00805f9b34fb"] primary:NO];

@@ -28,7 +28,7 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 static BLEUUID serviceUUID("0000fea0-1234-1000-8000-00805f9b34fb"); //Service
-static BLEUUID dataUUID("0000fea1-1234-1000-8000-00805f9b34fb"); // data characteristic
+static BLEUUID dataUUID("0000fea1-0000-1000-8000-00805f9b34fb"); // data characteristic
 //static BLEUUID nameUUID("0000fea2-0000-1000-8000-00805f9b34fb"); // name characteristic
 std::string VD_BLE_Name = "RemoteDisplay";
 char Scanned_BLE_Name[32];
@@ -237,14 +237,18 @@ uint16_t BLEDisplay::BLEReceive()
 int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
 {
     uint8_t ucTemp[512];
+    static int iCounter = 0;
     int iSize = count*2 + data[1];
+    
+    iCounter++; // count packets to know when we need to ask for a response
+    // If we send too many without responses, the BLE lib will hang
     memcpy(ucTemp, data, count*sizeof(uint16_t)); // non-payload part
     memcpy(&ucTemp[count*sizeof(uint16_t)], varData, data[1]); // var payload
 #ifdef HAL_ESP32_HAL_H_
-    pCharacteristicData->writeValue(ucTemp, iSize, false);
+    pCharacteristicData->writeValue(ucTemp, iSize, (iCounter & 0x3f) == 0);
 #endif
 #ifdef ARDUINO_ARDUINO_NANO33BLE
-    pCharacteristicData.writeValue(ucTemp, iSize, false);
+    pCharacteristicData.writeValue(ucTemp, iSize, (iCounter & 0x3f) == 0);
 #endif
 #ifdef ARDUINO_NRF52_ADAFRUIT
     if (iSize > 20) // only write with response supports large packets
@@ -275,8 +279,9 @@ int BLEDisplay::BLESend(uint16_t *data, int count)
 int BLEDisplay::begin(uint16_t display_type)
 {
     _display_type = display_type;
+    _bConnected = 0;
 #ifdef ARDUINO_NRF52_ADAFRUIT
-    isConnected = _bConnected = 0;
+    isConnected = 0;
     // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
     // SRAM usage required by SoftDevice will increase dramatically with number of connections
     Bluefruit.begin(0, 1);
@@ -347,9 +352,11 @@ int BLEDisplay::begin(uint16_t display_type)
     if (pCharacteristicData != nullptr)
     {
         _bConnected = 1;
-        return RD_SUCCESS;
     }
-  return RD_NOT_CONNECTED;
+    else
+    {
+        return RD_NOT_CONNECTED;
+    }
 #endif // ESP32
 
 #ifdef ARDUINO_ARDUINO_NANO33BLE
@@ -571,6 +578,7 @@ int BLEDisplay::dumpBuffer(uint8_t * buffer)
 {
     // not implemented yet
     (void)buffer;
+    return RD_SUCCESS;
 } /* BLEDisplay::dumpBuffer() */
 //
 // UART implementation

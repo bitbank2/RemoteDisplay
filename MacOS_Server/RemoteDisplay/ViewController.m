@@ -1110,8 +1110,7 @@ int writeDisplay(unsigned char *p, int len)
             break;
         case RD_GET_INFO:
             break;
-        case RD_GET_BUTTONS:
-            
+        case RD_GET_BUTTONS: // not needed, read requests return button info
             break;
         case RD_BACKLIGHT:
             break;
