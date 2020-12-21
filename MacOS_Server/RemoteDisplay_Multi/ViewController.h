@@ -1,23 +1,21 @@
 //
 //  ViewController.h
-//  RemoteDisplay
+//  RemoteDisplay_Multi
 //
-//  Created by Laurence Bank on 4/29/20.
-//  Copyright © 2020 Laurence Bank. All rights reserved.
+//  Created by Laurence Bank on 12/20/20.
 //
 
-#import <Cocoa/Cocoa.h>
+#import <UIKit/UIKit.h>
 
-@interface ViewController : NSViewController
-@property (weak) IBOutlet NSImageView *theImage;
-@property (weak) IBOutlet NSButton *Button0;
-@property (weak) IBOutlet NSButton *Button1;
-@property (weak) IBOutlet NSButton *Button2;
+@interface ViewController : UIViewController
+@property (weak, nonatomic) IBOutlet UIButton *Button0;
+@property (weak, nonatomic) IBOutlet UIButton *Button1;
+@property (weak, nonatomic) IBOutlet UIButton *Button2;
+@property (weak, nonatomic) IBOutlet UIImageView *theImage;
 + (void) processBytes:(NSData *)thedata;
 + (int) getButtons;
 - (void) showOLED;
 - (void) showOLEDNotification:(NSNotification *) notification;
-+ (void) showText:(NSString *)name;
 
 enum {
    RD_NOP=0,

@@ -764,6 +764,13 @@ int SPIDisplay::begin(uint16_t u16DisplayType, uint16_t u16Flags, uint32_t u32Sp
     return RD_SUCCESS;
 } /* SPIDisplay:begin() */
 
+int SPIDisplay::dumpBuffer(uint8_t * buffer)
+{
+    // not implemented yet
+    (void)buffer;
+    return RD_SUCCESS;
+} /* SPIDisplay::dumpBuffer() */
+
 void SPIDisplay::shutdown()
 {
     spilcdShutdown(&_lcd);

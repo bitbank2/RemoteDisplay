@@ -1,18 +1,15 @@
 //
 //  ViewController.m
-//  RemoteDisplay
+//  RemoteDisplay_Multi
 //
-//  Created by Laurence Bank on 4/29/20.
-//  Copyright © 2020 Laurence Bank. All rights reserved.
+//  Created by Laurence Bank on 12/20/20.
 //
 
 #import "ViewController.h"
-
 void initDisplay(void);
 int writeDisplay(unsigned char *data, int len);
 static unsigned char *ucBitmap = nil;
-static NSImageView *theIV;
-static NSTextField *theText;
+static UIImageView *theIV;
 static int width = 240; // start with a non-zero size
 static int height = 320;
 static int display_type; // enumerated value passed from the client
@@ -24,7 +21,22 @@ static int orientation = 0;
 static int window_x, window_w, window_y, window_h;
 static int cursor_x, cursor_y;
 
+@interface ViewController ()
+
+@end
+
 @implementation ViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    theIV = _theImage; // allow access from public static method
+    initDisplay(); // allocate memory for the display bitmap
+    // Do any additional setup after loading the view.
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(showOLEDNotification:)
+                                                 name:@"showOLED"
+                                               object:nil];
+}
 
 // Horizontal resolution of each display type
 const uint16_t xres_list[] = {
@@ -1118,29 +1130,6 @@ int writeDisplay(unsigned char *p, int len)
     return 1;
 } /* writeDisplay() */
 
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    theIV = _theImage; // allow access from public static method
-    initDisplay(); // allocate memory for the display bitmap
-    // Do any additional setup after loading the view.
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(showOLEDNotification:)
-                                                 name:@"showOLED"
-                                               object:nil];
-
-}
-
-- (void)setRepresentedObject:(id)representedObject {
-    [super setRepresentedObject:representedObject];
-
-    // Update the view, if already loaded.
-}
-
-+ (void) showText:(NSString *)name
-{
-    [theText setStringValue:name];
-}
-
 - (void) showOLEDNotification:(NSNotification *) notification
 {
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1167,9 +1156,9 @@ int writeDisplay(unsigned char *p, int len)
         // must match that of the display (for retina devices it will be 2.0 or 3.0)
         //
     //    NSImage *image = [NSImage ]
-        NSImage *image = [[NSImage alloc]initWithCGImage:myimage size:NSZeroSize];
+        UIImage *image = [[UIImage alloc] initWithCGImage:myimage];
         //    iv.transform =  CGAffineTransformMakeScale(1.0, 1.0);
-        theIV.imageScaling = NSImageScaleAxesIndependently; // scales to fill
+//        theIV.imageScaling = UIImageScaleAxesIndependently; // scales to fill
         theIV.image = image;
 
         // Free temp objects
@@ -1195,23 +1184,24 @@ int writeDisplay(unsigned char *p, int len)
 // keep the state of each as a single bit in a vector
 // which can be read remotely
 //
-- (IBAction)Button1_Pressed:(NSButton *)sender {
-    if ([_Button1 state] == NSControlStateValueOff)
-        button_state &= ~2;
-    else if ([_Button1 state] == NSControlStateValueOn)
-        button_state |= 2;
+- (IBAction)Button0_Released:(UIButton *)sender {
+    button_state &= ~1;
 }
-- (IBAction)Button0_Pressed:(NSButton *)sender {
-    if ([_Button0 state] == NSControlStateValueOff)
-        button_state &= ~1;
-    else if ([_Button0 state] == NSControlStateValueOn)
-        button_state |= 1;
+- (IBAction)Button1_Released:(UIButton *)sender {
+    button_state &= ~2;
 }
-- (IBAction)Button2_Pressed:(NSButton *)sender {
-    if ([_Button2 state] == NSControlStateValueOff)
-        button_state &= ~4;
-    else if ([_Button2 state] == NSControlStateValueOn)
-        button_state |= 4;
+- (IBAction)Button2_Released:(UIButton *)sender {
+    button_state &= ~4;
+}
+
+- (IBAction)Button0_Pressed:(UIButton *)sender {
+    button_state |= 1;
+}
+- (IBAction)Button1_Pressed:(UIButton *)sender {
+    button_state |= 2;
+}
+- (IBAction)Button2_Pressed:(UIButton *)sender {
+    button_state |= 4;
 }
 
 @end
