@@ -170,6 +170,16 @@ uint16_t RemoteDisplay::crc_16(uint8_t *data, size_t size)
     return crc;
 } /* crc_16() */
 
+uint16_t RemoteDisplay::_get_buttons(void)
+{
+    uint16_t buttons = 0;
+
+    for (int i=0; i<_button_count; i++)
+        if (digitalRead(_buttons[i]) == _button_active)
+            buttons |= (1 << i);
+    
+    return buttons;
+}
 #ifdef HAL_ESP32_HAL_H_
 // Called for each device found during a BLE scan by the client
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks
@@ -745,14 +755,80 @@ uint16_t UARTDisplay::getButtons()
 //
 int I2CDisplay::begin(uint16_t u16DisplayType, int SDAPin, int SCLPin, int bBitBang, uint32_t u32Speed)
 {
-    (void)u32Speed; // DEBUG
-    (void)SDAPin;
-    (void)SCLPin;
-    (void)bBitBang;
+int rc, iDisp;
 
-    _display_type = u16DisplayType;
+   iDisp = u16DisplayType - RD_OLED_128x128 + 1;
+   rc = obdI2CInit(&_obd, iDisp, -1, 0, 0, (bBitBang == 0), SDAPin, SCLPin, -1, u32Speed); 
+   if (rc >= 0) {
+      _display_type = u16DisplayType;
+      return RD_SUCCESS;
+   } else {
+      return RD_INIT_FAILED;
+   }
+} /* I2CDisplay::begin() */
+
+int I2CDisplay::dumpBuffer(uint8_t * buffer)
+{
+    obdDumpBuffer(&_obd, buffer);
     return RD_SUCCESS;
-} /* begin() */
+} /* I2CDisplay::dumpBuffer() */
+void I2CDisplay::shutdown()
+{
+    obdPower(&_obd, 0);
+} /* I2CDisplay::shutdown() */
+
+int I2CDisplay::fill(uint16_t u16Color)
+{
+    obdFill(&_obd, (u16Color > 0) ? 0xff:0x00, 1);
+    return RD_SUCCESS;
+} /* I2CDisplay::fill() */
+
+int I2CDisplay::drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color)
+{
+    obdDrawLine(&_obd, x1, y1, x2, y2, (uint8_t)(u16Color > 0), 1);
+    return RD_SUCCESS;
+} /* I2CDisplay::drawLine() */
+
+int I2CDisplay::drawPixel(int x, int y, uint16_t u16Color)
+{
+    obdSetPixel(&_obd, x, y, (uint8_t)(u16Color > 0), 1);
+    return RD_SUCCESS;
+} /* I2CDisplay::drawPixel() */
+
+int I2CDisplay::drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor)
+{
+    obdWriteString(&_obd, 0, x, y, szText, u8Font, 0, 1);
+    return RD_SUCCESS;
+} /* I2CDisplay::drawText() */
+
+int I2CDisplay::drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled)
+{
+    obdEllipse(&_obd, x, y, r1, r2, (uint8_t)(u16Color > 0), bFilled);
+    return RD_SUCCESS;
+} /* I2CDisplay::drawEllipse() */
+
+int I2CDisplay::setOrientation(int angle)
+{
+    // DEBUG
+    int i = LCD_ORIENTATION_0;
+    if (angle != 0 && angle != 90 && angle != 180 && angle != 270)
+        return RD_INVALID_PARAMETER;
+    if (angle == 0)
+        i = LCD_ORIENTATION_0;
+//    else if (angle == 90)
+//        i = LCD_ORIENTATION_90;
+    else if (angle == 180)
+        i = LCD_ORIENTATION_180;
+//    else i = LCD_ORIENTATION_270;
+//    spilcdSetOrientation(&_lcd, i);
+    _orientation = angle;
+    return RD_SUCCESS;
+} /* I2CDisplay::setOrientation() */
+
+uint16_t I2CDisplay::getButtons()
+{
+    return _get_buttons();
+} /* I2CDisplay::getButtons() */
 
 int SPIDisplay::begin(uint16_t u16DisplayType, uint16_t u16Flags, uint32_t u32Speed, int CS_Pin, int DC_Pin, int RESET_Pin, int LED_Pin)
 {
@@ -843,11 +919,5 @@ int SPIDisplay::setOrientation(int angle)
 
 uint16_t SPIDisplay::getButtons()
 {
-    uint16_t buttons = 0;
-
-    for (int i=0; i<_button_count; i++)
-        if (digitalRead(_buttons[i]) == _button_active)
-            buttons |= (1 << i);
-    
-    return buttons;
+    return _get_buttons();
 } /* SPIDisplay::getButtons()*/

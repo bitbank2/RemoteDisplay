@@ -22,7 +22,7 @@
 #define PROGMEM
 #else
 #include <Arduino.h>
-//#include <OneBitDisplay.h>
+#include <OneBitDisplay.h>
 #include <bb_spi_lcd.h>
 #endif
 //
@@ -157,6 +157,8 @@ class RemoteDisplay
     bool _bConnected;
     int _buttons[MAX_BUTTONS], _button_active, _button_count;
     uint16_t crc_16(uint8_t *data, size_t size);
+    uint16_t _get_buttons(void);
+
 }; // class RemoteDisplay
 //
 // Bluetooth Low Energy (remote)
@@ -217,7 +219,8 @@ class I2CDisplay : public RemoteDisplay
 public:
     I2CDisplay() : RemoteDisplay() {}
     ~I2CDisplay() {}
-    int begin(uint16_t u16DisplayType, int SDAPin, int SCLPin, int bBitBang, uint32_t u32Speed);
+    int begin(uint16_t u16DisplayType, int SDAPin = -1, int SCLPin = -1, int bBitBang = 0, uint32_t u32Speed = 400000);
+    void shutdown();
     int fill(uint16_t u16Color);
     int drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color);
     int drawPixel(int x, int y, uint16_t u16Color);
@@ -229,6 +232,8 @@ public:
     int setOrientation(int angle);
     int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
+private:
+    OBDISP _obd;
 
 }; // class I2CDisplay
 //
