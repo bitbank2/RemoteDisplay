@@ -69,7 +69,10 @@ const uint16_t xres_list[] = {
 96, //        RD_LCD_HX1230,
 84, //        RD_LCD_NOKIA5110,
 144, //        RD_SHARP_144x168,
-400 //        RD_SHARP_400x240
+400, //        RD_SHARP_400x240
+224, //        RD_EPOP_50
+320, //        RD_EPOP_500
+480  //        RD_EPOP_900
 };
 // Vertical resolution of each display type
 const uint16_t yres_list[] = {
@@ -102,7 +105,10 @@ const uint16_t yres_list[] = {
 68, //        RD_LCD_HX1230,
 48, //        RD_LCD_NOKIA5110,
 168, //        RD_SHARP_144x168,
-240 //        RD_SHARP_400x240
+240, //        RD_SHARP_400x240
+90, //        RD_EPOP_50
+240, //        RD_EPOP_500
+360  //        RD_EPOP_900
 };
 // Bits per pixel of each display type
 const uint16_t bpp_list[] = {
@@ -135,7 +141,10 @@ const uint16_t bpp_list[] = {
 1, //        RD_LCD_HX1230,
 1, //        RD_LCD_NOKIA5110,
 1, //        RD_SHARP_144x168,
-1 //        RD_SHARP_400x240
+1, //        RD_SHARP_400x240
+1, //        RD_EPOP_50
+1, //        RD_EPOP_500
+1  //        RD_EPOP_900
 };
 
 // Built-in font data

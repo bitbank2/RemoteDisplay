@@ -584,11 +584,18 @@ uint16_t BLEDisplay::getButtons()
 {
     return BLEReceive();
 } /* BLEDisplay::getButtons() */
+
 int BLEDisplay::dumpBuffer(uint8_t * buffer)
 {
-    // not implemented yet
-    (void)buffer;
-    return RD_SUCCESS;
+    if (_bpp == 1) {
+        uint16_t u16Tmp[4];
+        int iCount = (_width * _height) / 8;
+        u16Tmp[0] = RD_DUMP_BUFFER;
+        u16Tmp[1] = iCount/2; // in terms of uint16_t's
+        return BLESendVarData(u16Tmp, 2, (void *)buffer);
+    } else {
+        return RD_NOT_SUPPORTED;
+    }
 } /* BLEDisplay::dumpBuffer() */
 //
 // UART implementation
@@ -687,6 +694,19 @@ int UARTDisplay::writePixels(uint16_t *pixels, int count, uint8_t bDMA)
     u16Tmp[2] = (uint16_t)bDMA;
     return UARTSendVarData(u16Tmp, 3, pixels); // send to the remote server
 } /* UARTDisplay::writePixels() */
+
+int UARTDisplay::dumpBuffer(uint8_t * buffer)
+{
+    if (_bpp == 1) {
+        uint16_t u16Tmp[4];
+        int iCount = (_width * _height) / 8;
+        u16Tmp[0] = RD_DUMP_BUFFER;
+        u16Tmp[1] = iCount/2; // in terms of uint16_t's
+        return UARTSendVarData(u16Tmp, 2, (void *)buffer);
+    } else {
+        return RD_NOT_SUPPORTED;
+    }
+} /* UARTDisplay::dumpBuffer() */
 
 int UARTDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled)
 {
