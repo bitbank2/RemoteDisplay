@@ -807,7 +807,7 @@ void RDWrite(uint16_t *pu16, int iLen)
 
      case RD_WRITE_PIXELS:
         {
-            int iCount = pu16[1];
+            int iCount = pu16[1] / 2; // turn bytes into pixels
             uint16_t *s = &pu16[3];
             M5.Lcd.startWrite();
             M5.Lcd.writePixels(s, iCount); // write the pixels
@@ -892,6 +892,7 @@ void setup() {
   DrawString(34, 40, (char *)"written by Larry Bank", 0x7e0, 0, FONT_12x16);
 
   BLEDevice::init("RemoteDisplay");
+  BLEDevice::setMTU(256); // allow bigger MTU size
   pServer = BLEDevice::createServer();
   pService = pServer->createService(serviceUUID);
   
