@@ -781,6 +781,7 @@ int rc, iDisp;
    rc = obdI2CInit(&_obd, iDisp, -1, 0, 0, (bBitBang == 0), SDAPin, SCLPin, -1, u32Speed); 
    if (rc >= 0) {
       _display_type = u16DisplayType;
+      obdSetBackBuffer(&_obd, _buffer);
       return RD_SUCCESS;
    } else {
       return RD_INIT_FAILED;
@@ -817,15 +818,39 @@ int I2CDisplay::drawPixel(int x, int y, uint16_t u16Color)
 
 int I2CDisplay::drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor)
 {
-    obdWriteString(&_obd, 0, x, y, szText, u8Font, 0, 1);
+    obdWriteString(&_obd, 0, x, y/8, szText, u8Font, 0, 1);
     return RD_SUCCESS;
 } /* I2CDisplay::drawText() */
 
 int I2CDisplay::drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled)
 {
     obdEllipse(&_obd, x, y, r1, r2, (uint8_t)(u16Color > 0), bFilled);
+    obdDumpBuffer(&_obd, NULL); // show it
     return RD_SUCCESS;
 } /* I2CDisplay::drawEllipse() */
+
+int I2CDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled)
+{
+    obdRectangle(&_obd, x, y, x+w-1, y+h-1, u16Color, bFilled);
+} /* drawRect() */
+
+int I2CDisplay::setWindow(int x, int y, int w, int h)
+{
+    _x = x;
+    _y = y;
+    _w = w;
+    _h = h;
+    return RD_SUCCESS;
+} /* I2CDisplay::setWindow() */
+
+int I2CDisplay::writePixels(uint16_t *pixels, int count, uint8_t bDMA)
+{
+    (void)pixels;
+    (void)count;
+    (void)bDMA;
+    // DEBUG - missing implementation
+    return RD_SUCCESS;
+} /* I2CDisplay::writePixels() */
 
 int I2CDisplay::setOrientation(int angle)
 {

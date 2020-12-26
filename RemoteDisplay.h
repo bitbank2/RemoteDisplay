@@ -157,6 +157,8 @@ public:
     uint16_t getButtons();
 private:
     OBDISP _obd;
+    int _x, _y, _w, _h; // current window info
+    uint8_t _buffer[1024]; // DEBUG
 
 }; // class I2CDisplay
 //
