@@ -761,7 +761,7 @@ uint16_t u16Tmp[512];
 
 void RDWrite(uint16_t *pu16, int iLen)
 {
-  switch (pu16[0]) // remote display command
+  switch (pu16[0] & 0xff) // remote display command
   {
      case RD_INIT:
             display_type = pu16[1];
@@ -867,12 +867,47 @@ void RDWrite(uint16_t *pu16, int iLen)
 
 class CharacteristicCallbacks: public BLECharacteristicCallbacks {
      void onWrite(BLECharacteristic *characteristic) {
+        static uint8_t buffer[256];
+        static int iBufTotal, iBufLen = 0;
+        int len;
+        unsigned char *p, *pData = NULL, bSendIt = 0;
+        
           std::string rxValue = characteristic->getValue(); 
-          int iLen = rxValue.length();
-          if (iLen > 0) {
-            uint16_t *pData = (uint16_t *)rxValue.c_str();
-              RDWrite(pData, iLen);
+          len = rxValue.length();
+          if (len > 0) {
+              p = (uint8_t *)rxValue.c_str();
+          // normal packet, pass it along
+          if (iBufLen == 0 && p[1] == 0) {
+             pData = p;
+             bSendIt = 1;
+          } else if (iBufLen == 0 && p[1] != 0) { // start of a long packet
+            if (len != (int)p[1]) // we received partial data (probably Adafruit BLE sending it)
+            {
+              iBufLen = p[1];
+              memcpy(buffer, p, len); // copy what we're given
+              iBufTotal += len;
+            }
+            else // we got everything, so no worries
+            {
+              bSendIt = 1;
+              pData = p;
+            }
+          } else if (iBufLen != 0 && iBufTotal < iBufLen) { // we had partial data from a previous packet
+            memcpy(&buffer[iBufTotal], p, len); // get new data
+            iBufTotal += len;
+            if (iBufTotal >= iBufLen) // we got everything
+            {
+              pData = buffer;
+              len = iBufLen;
+              iBufLen = iBufTotal = 0;
+              bSendIt = 1; // send it
+            }
+         }
+       if (bSendIt) {
+          bSendIt = 0;
+          RDWrite((uint16_t *)pData, len);
           }
+        } // if (len > 0)
      }/* onWrite() */
      
      void onRead (BLECharacteristic *characteristic) {

@@ -96,8 +96,15 @@ static void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 
 static void scan_callback(ble_gap_evt_adv_report_t* report)
 {
-  if (Bluefruit.Scanner.checkReportForUuid(report, myServiceUUID))
+//    Serial.printf("found something %s\n", report->data.p_data);
+//  if (Bluefruit.Scanner.checkReportForUuid(report, myServiceUUID))
+    char *name = (char *)report->data.p_data;
+    int i;
+    for (i=0; i<report->data.len; i++)
+      if (name[i] == 'R') break; // "parse" for the name in the adv data
+  if (name && memcmp(&name[i], "RemoteDisplay", 13) == 0)
   {
+//      Serial.println("Found RemoteDisplay");
       Bluefruit.Scanner.stop();
 //      Serial.print("RemoteDisplay UUID detected. Connecting ... ");
       Bluefruit.Central.connect(report);
@@ -246,10 +253,11 @@ uint16_t BLEDisplay::BLEReceive()
 
 int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
 {
-    uint8_t ucTemp[512];
+    uint8_t ucTemp[256];
     static int iCounter = 0;
     int iSize = count*2 + data[1];
     
+    data[0] |= (uint16_t)(iSize << 8); // total packet size in bytes
     iCounter++; // count packets to know when we need to ask for a response
     // If we send too many without responses, the BLE lib will hang
     memcpy(ucTemp, data, count*sizeof(uint16_t)); // non-payload part
@@ -261,12 +269,7 @@ int BLEDisplay::BLESendVarData(uint16_t *data, int count, void *varData)
     pCharacteristicData.writeValue(ucTemp, iSize, (iCounter & 0x3f) == 0);
 #endif
 #ifdef ARDUINO_NRF52_ADAFRUIT
-    if (iSize > 20) // only write with response supports large packets
-    {
-        myDataChar.write_resp((const void *)ucTemp, (uint16_t)iSize);
-    }
-    else
-        myDataChar.write((const void *)ucTemp, (uint16_t)iSize);
+    myDataChar.write((const void *)ucTemp, (uint16_t)iSize);
 #endif
     return RD_SUCCESS;
 } /* BLESendVarData() */
@@ -299,6 +302,7 @@ int BLEDisplay::begin(uint16_t display_type)
     Bluefruit.setName("Bluefruit52");
     /* Set the LED interval for blinky pattern on BLUE LED */
     Bluefruit.setConnLedInterval(250);
+    Bluefruit.configCentralBandwidth(BANDWIDTH_MAX);
     myService.begin(); // start my client service
     // Initialize client characteristics of VirtualDisplay.
     // Note: Client Chars will be added to the last service that is begin()ed.
@@ -317,7 +321,7 @@ int BLEDisplay::begin(uint16_t display_type)
     Bluefruit.Scanner.setRxCallback(scan_callback);
     Bluefruit.Scanner.restartOnDisconnect(true);
 //    Bluefruit.Scanner.filterRssi(-72);
-    Bluefruit.Scanner.filterUuid(myServiceUUID);
+//    Bluefruit.Scanner.filterUuid(myServiceUUID);
     Bluefruit.Scanner.setInterval(160, 80);       // in units of 0.625 ms
     Bluefruit.Scanner.useActiveScan(true);        // Request scan response data
     Bluefruit.Scanner.start(0);                   // 0 = Don't stop scanning after n seconds

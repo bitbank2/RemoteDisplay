@@ -944,7 +944,12 @@ uint32_t convertColor(uint16_t u16Color)
     uint32_t u32 = 0xff000000; // opaque alpha
     if (bpp == 1) // convert to B or W
     {
-        u32 = (u16Color) ? (contrast * 0x01010100) : 0;
+        if (display_type >= RD_LCD_UC1701) { // inverted for LCDs
+            u32 = (u16Color == 0) ? 0xffffffff : 0x0;
+        }
+        else {
+            u32 |= (u16Color) ? (contrast * 0x01010100) : 0;
+        }
         return u32;
     }
     u32 |= ((u16Color & 0x1f) << 19) | ((u16Color & 0x1c) << 14); // blue
@@ -996,7 +1001,7 @@ int writeDisplay(unsigned char *p, int len)
     uint32_t u32Color;
     uint32_t *pu32 = (uint32_t *)ucBitmap;
     
-    switch (pu16[0]) // operation
+    switch (pu16[0] & 0xff) // operation
     {
         case RD_INIT:
             display_type = pu16[1];
@@ -1181,11 +1186,46 @@ int writeDisplay(unsigned char *p, int len)
 }
 + (void) processBytes:(NSData *)thedata;
 {
-    int len = (int) [thedata length];
-    unsigned char *p = (unsigned char *)[thedata bytes];
-    if (writeDisplay(p, len)) { // need to repaint the display
+    static uint8_t buffer[256];
+    static int iBufTotal, iBufLen = 0;
+    int len;
+    unsigned char *p, *data = nil, bSendIt = 0;
+    
+    len = (int) [thedata length];
+    p = (unsigned char *)[thedata bytes];
+    // normal packet, pass it along
+    if (iBufLen == 0 && p[1] == 0) {
+        data = p;
+        bSendIt = 1;
+    } else if (iBufLen == 0 && p[1] != 0) { // start of a long packet
+        if (len != (int)p[1]) // we received partial data (probably Adafruit BLE sending it)
+        {
+            iBufLen = p[1];
+            memcpy(buffer, p, len); // copy what we're given
+            iBufTotal += len;
+        }
+        else // we got everything, so no worries
+        {
+            bSendIt = 1;
+            data = p;
+        }
+    } else if (iBufLen != 0 && iBufTotal < iBufLen) { // we had partial data from a previous packet
+        memcpy(&buffer[iBufTotal], p, len); // get new data
+        iBufTotal += len;
+        if (iBufTotal >= iBufLen) // we got everything
+        {
+            data = buffer;
+            len = iBufLen;
+            iBufLen = iBufTotal = 0;
+            bSendIt = 1; // send it
+        }
+    }
+    if (bSendIt) {
+        bSendIt = 0;
+        if (writeDisplay(data, len)) { // need to repaint the display
         [[NSNotificationCenter defaultCenter] postNotificationName:@"showOLED"
             object:self];
+        }
     }
 }
 //
