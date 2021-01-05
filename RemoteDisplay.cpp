@@ -30,16 +30,16 @@
 static BLEUUID serviceUUID("0000fea0-1234-1000-8000-00805f9b34fb"); //Service
 static BLEUUID dataUUID("0000fea1-0000-1000-8000-00805f9b34fb"); // data characteristic
 //static BLEUUID nameUUID("0000fea2-0000-1000-8000-00805f9b34fb"); // name characteristic
-std::string VD_BLE_Name = "RemoteDisplay";
-char Scanned_BLE_Name[32];
-String Scanned_BLE_Address;
-BLEScanResults foundDevices;
+static std::string VD_BLE_Name = "RemoteDisplay";
+char Scanned_Name[32];
+String Scanned_Address;
+static BLEScanResults foundDevices;
 static BLEAddress *Server_BLE_Address;
-volatile boolean paired = false; //boolean variable to togge light
-BLEServer *pServer;
-BLEScan *pBLEScan;
-BLEService *pService;
-BLERemoteCharacteristic *pCharacteristicData;
+static volatile boolean paired = false; //boolean variable to togge light
+static BLEServer *pServer;
+static BLEScan *pBLEScan;
+static BLEService *pService;
+static BLERemoteCharacteristic *pCharacteristicData;
 #endif // HAL_ESP32_HAL_H_
 
 // Bluetooth support for Adafruit nrf52 boards
@@ -193,10 +193,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks
 {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
       Serial.printf("Scan Result: %s \n", advertisedDevice.toString().c_str());
-      if (Scanned_BLE_Name[0] == 0 && strcmp(VD_BLE_Name.c_str(), advertisedDevice.getName().c_str()) == 0) { // this is what we want
+      if (Scanned_Name[0] == 0 && strcmp(VD_BLE_Name.c_str(), advertisedDevice.getName().c_str()) == 0) { // this is what we want
         Server_BLE_Address = new BLEAddress(advertisedDevice.getAddress());
-        Scanned_BLE_Address = Server_BLE_Address->toString().c_str();
-        strcpy(Scanned_BLE_Name, advertisedDevice.getName().c_str());
+        Scanned_Address = Server_BLE_Address->toString().c_str();
+        strcpy(Scanned_Name, advertisedDevice.getName().c_str());
         Serial.printf("Found what we're looking for!\n");
         pBLEScan->stop(); // stop scanning
       }
@@ -204,7 +204,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks
 };
 
 // When the scan has found the BLE server device name we're looking for, we try to connect
-bool connectToserver (BLEAddress pAddress)
+static bool connectToserver (BLEAddress pAddress)
 {
     BLEClient*  pClient  = BLEDevice::createClient();
     Serial.println(" - Created client");
@@ -342,7 +342,7 @@ int BLEDisplay::begin(uint16_t display_type)
 #ifdef HAL_ESP32_HAL_H_
     pCharacteristicData = NULL;
     BLEDevice::init("ESP32BLE");
-    Scanned_BLE_Name[0] = 0;
+    Scanned_Name[0] = 0;
     pBLEScan = BLEDevice::getScan(); //create new scan
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks()); //Call the class that is defined above
     pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
@@ -350,12 +350,12 @@ int BLEDisplay::begin(uint16_t display_type)
 
   while (!paired && foundDevices.getCount() >= 1)
   {
-    if (strcmp(Scanned_BLE_Name,VD_BLE_Name.c_str()) == 0) // found the device we want
+    if (strcmp(Scanned_Name,VD_BLE_Name.c_str()) == 0) // found the device we want
     {
 //      pBLEScan->stop(); // stop scanning
       yield();
       Serial.println("Found Device :-)... connecting to Server as client");
-      Scanned_BLE_Name[0] = 0; // don't reconnect until we scan again
+      Scanned_Name[0] = 0; // don't reconnect until we scan again
       if (connectToserver(*Server_BLE_Address))
       {
       paired = true;
@@ -476,6 +476,79 @@ int BLEDisplay::drawLine(int x1, int y1, int x2, int y2, uint16_t u16Color)
     return BLESend(u16Tmp, 6); // send to the remote server
 } /* drawLine() */
 
+// transmit font data to the display server
+int BLEDisplay::setFont(const GFXfont *pFont, int fontIndex)
+{
+    int iMaxOffset, iMaxIndex;
+    int rc, i, iSize, iCount;
+    uint16_t u16Tmp[8];
+    GFXglyph *glyph;
+    uint8_t *pData;
+    // figure out the bitmap image data size
+    glyph = pFont->glyph; // glyph table
+    iMaxOffset = 0;
+    // the data may not be in order (it probably is)
+    iSize = pFont->last - pFont->first;
+    for (i=0; i < iSize; i++) {
+        if (glyph[i].bitmapOffset > iMaxOffset) {
+            iMaxOffset = glyph[i].bitmapOffset;
+            iMaxIndex = i;
+        }
+    } // for i
+    // Now that we have the max bitmap offset, calculate the last bitmap byte
+//    Serial.printf("max bitmap offset = %d\n", iMaxOffset);
+    iSize = glyph[iMaxIndex].width * glyph[iMaxIndex].height;
+    iSize = (iSize + 7)/8; // number of bytes
+    iMaxOffset += iSize; // we now know how much bitmap data to send
+    // send the font info first to allow the server to allocate memory
+    u16Tmp[0] = RD_SET_FONT_INFO;
+    u16Tmp[1] = fontIndex;
+    u16Tmp[2] = pFont->first;    ///< ASCII extents (first char)
+    u16Tmp[3] = pFont->last;     ///< ASCII extents (last char)
+    u16Tmp[4] = pFont->yAdvance; ///< Newline distance (y axis)
+    u16Tmp[5] = (uint16_t)iMaxOffset; // bitmap size
+    u16Tmp[6] = (uint16_t)(iMaxOffset >> 16);
+    rc = BLESend(u16Tmp, 7);
+
+    iCount = (iMaxOffset + MAX_DATA_BLOCK-1) / MAX_DATA_BLOCK; // send max 230 bytes per block
+//    Serial.printf("About to send font bitmap size %d, blocks: %d\n", iMaxOffset, iCount);
+    pData = (uint8_t *)pFont->bitmap; // start of bitmap data
+    // Transmit the font's bitmap data first
+    rc = RD_SUCCESS;
+    for (i=0; i<iCount && rc == RD_SUCCESS; i++) {
+        u16Tmp[0] = RD_SET_FONT_BITMAP;
+        u16Tmp[4] = fontIndex;
+        u16Tmp[2] = i; // current block
+        u16Tmp[3] = iCount; // total blocks
+        iSize = (iMaxOffset > MAX_DATA_BLOCK) ? MAX_DATA_BLOCK : iMaxOffset;
+        u16Tmp[1] = iSize; // payload size
+        rc = BLESendVarData(u16Tmp, 5, (void *)pData); // send to the remote server
+        pData += iSize;
+        iMaxOffset -= iSize;
+    } // for each block of bitmap data
+    // Now transmit the font index data
+    iMaxOffset = pFont->last - pFont->first; // number of entries
+    iMaxOffset *= sizeof(GFXglyph); // might be packed structure or not
+    pData = (uint8_t *)pFont->glyph;
+    iCount = (iMaxOffset + MAX_DATA_BLOCK-1) / MAX_DATA_BLOCK; // send max 230 bytes per block
+//    Serial.printf("About to send font index size %d, blocks: %d\n", iMaxOffset, iCount);
+    for (i=0; i<iCount && rc == RD_SUCCESS; i++) {
+        u16Tmp[0] = RD_SET_FONT_INDEX;
+        iSize = (iMaxOffset > MAX_DATA_BLOCK) ? MAX_DATA_BLOCK : iMaxOffset;
+        u16Tmp[1] = iSize; // payload size
+        u16Tmp[2] = (i | (iCount << 8)); // current block / total blocks
+        u16Tmp[3] = fontIndex; // || (sizeof(GFXglyph) << 8); // send structure size too because it can be 7 or 8
+        rc = BLESendVarData(u16Tmp, 4, (void *)pData); // send to the remote server
+        pData += iSize;
+        iMaxOffset -= iSize;
+    } // for each block of bitmap data
+    return rc;
+} /* BLEDisplay::setFont() */
+
+int BLEDisplay::setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap)
+{
+    return 0;
+}
 int BLEDisplay::drawPixel(int x, int y, uint16_t u16Color)
 {
     uint16_t u16Tmp[8];
@@ -889,6 +962,19 @@ int SPIDisplay::begin(uint16_t u16DisplayType, uint16_t u16Flags, uint32_t u32Sp
     return RD_SUCCESS;
 } /* SPIDisplay:begin() */
 
+int SPIDisplay::setFont(const GFXfont *pFont, int fontIndex)
+{
+    if (fontIndex >= 0 && fontIndex < MAX_FONT_INDEX) {
+        _fonts[fontIndex] = (GFXfont *)pFont;
+        return RD_SUCCESS;
+    }
+    return RD_INVALID_PARAMETER;
+} /* setFont() */
+
+int SPIDisplay::setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap)
+{
+    return 0;
+}
 int SPIDisplay::dumpBuffer(uint8_t * buffer)
 {
     // not implemented yet
@@ -939,7 +1025,10 @@ int SPIDisplay::drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFil
 
 int SPIDisplay::drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor)
 {
-    spilcdWriteString(&_lcd, x, y, szText, u16FGColor, u16BGColor, u8Font, DRAW_TO_LCD);
+    if (u8Font < RD_FONT_CUSTOM_0)
+        spilcdWriteString(&_lcd, x, y, szText, u16FGColor, u16BGColor, u8Font, DRAW_TO_LCD);
+    else // draw custom font
+        spilcdWriteStringCustom(&_lcd, _fonts[u8Font - RD_FONT_CUSTOM_0], x, y, szText, u16FGColor, u16BGColor, 1, DRAW_TO_LCD);
     return RD_SUCCESS;
 } /* SPIDisplay::drawText() */
 

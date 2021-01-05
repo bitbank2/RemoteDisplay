@@ -1,4 +1,6 @@
 #define MAX_BUTTONS 4
+#define MAX_FONT_INDEX 4
+#define MAX_DATA_BLOCK 230
 /* Defines and variables */
 enum {
    RD_NOP=0,
@@ -18,7 +20,10 @@ enum {
    RD_GET_INFO,
    RD_GET_BUTTONS,
    RD_BACKLIGHT,
-   RD_ADD_ASSET,
+   RD_SET_FONT_BITMAP,
+   RD_SET_FONT_INDEX,
+   RD_SET_FONT_INFO,
+   RD_SET_BITMAP,
    RD_API_COUNT
 };
 
@@ -70,15 +75,19 @@ enum {
     RD_NOT_CONNECTED,
     RD_NOT_SUPPORTED
 };
-#ifndef SPI_LCD_H
+
 // Built-in font sizes
 enum {
-   FONT_6x8 = 0,
-   FONT_8x8,
-   FONT_12x16,
-   FONT_16x16,
-   FONT_16x32,
-   FONT_COUNT
+    RD_FONT_6x8 = 0,
+    RD_FONT_8x8,
+    RD_FONT_12x16,
+    RD_FONT_16x16,
+    RD_FONT_16x32,
+    RD_FONT_CUSTOM_0,
+    RD_FONT_CUSTOM_1,
+    RD_FONT_CUSTOM_2,
+    RD_FONT_CUSTOM_3,
+    RD_FONT_COUNT
 };
-#endif
+
 

@@ -38,6 +38,33 @@ static int cursor_x, cursor_y;
                                                object:nil];
 }
 
+// Proportional font data taken from Adafruit_GFX library
+/// Font data stored PER GLYPH
+#if !defined( _ADAFRUIT_GFX_H ) && !defined( _GFXFONT_H_ )
+#define _GFXFONT_H_
+typedef struct {
+  uint16_t bitmapOffset; ///< Pointer into GFXfont->bitmap
+  uint8_t width;         ///< Bitmap dimensions in pixels
+  uint8_t height;        ///< Bitmap dimensions in pixels
+  uint8_t xAdvance;      ///< Distance to advance cursor (x axis)
+  int8_t xOffset;        ///< X dist from cursor pos to UL corner
+  int8_t yOffset;        ///< Y dist from cursor pos to UL corner
+} GFXglyph;
+
+/// Data stored for FONT AS A WHOLE
+typedef struct {
+  uint8_t *bitmap;  ///< Glyph bitmaps, concatenated
+  GFXglyph *glyph;  ///< Glyph array
+  uint8_t first;    ///< ASCII extents (first char)
+  uint8_t last;     ///< ASCII extents (last char)
+  uint8_t yAdvance; ///< Newline distance (y axis)
+} GFXfont;
+#endif // _ADAFRUIT_GFX_H
+
+static GFXfont fonts[4]; // allow up to 4 custom fonts
+static uint8_t *font_bitmaps[4] = {0,0,0,0};
+static uint8_t *font_indices[4] = {0,0,0,0};
+
 // Horizontal resolution of each display type
 const uint16_t xres_list[] = {
 0, // invalid
@@ -716,8 +743,116 @@ void drawEllipse(int iCenterX, int iCenterY, int iRadiusX, int iRadiusY, uint32_
             y--;
         }
     }
-} /* spilcdEllipse() */
+} /* drawEllipse() */
+//
+// Draw a string in a proportional font you supply
+//
+int DrawStringCustom(int x, int y, char *szMsg, uint32_t u32FG, uint32_t u32BG, int iFont)
+{
+int i, j, k, dx, dy, cx, cy, c, iBitOff;
+int tx, ty;
+int bBlank = 1; // DEBUG
+uint8_t *s, bits, uc;
+GFXfont *pFont;
+GFXglyph glyph, *pGlyph;
+uint32_t *d, *pu32 = (uint32_t *)ucBitmap;
 
+    if (iFont < RD_FONT_CUSTOM_0 || iFont >= RD_FONT_COUNT)
+        return -1; // bad parameter
+    iFont -= RD_FONT_CUSTOM_0; // start index at 0
+    pFont = &fonts[iFont];
+    pGlyph = (GFXglyph *)font_indices[iFont];
+    i = 0;
+    while (szMsg[i] && x < width)
+    {
+      c = szMsg[i++];
+      if (c < pFont->first || c > pFont->last) // undefined character
+         continue; // skip it
+      c -= pFont->first; // first char of font defined
+      memcpy(&glyph, &pGlyph[c], sizeof(glyph));
+      // set up the destination window (rectangle) on the display
+      dx = x + pGlyph->xOffset; // offset from character UL to start drawing
+      dy = y + pGlyph->yOffset;
+      cx = pGlyph->width;
+      cy = pGlyph->height;
+      iBitOff = 0; // bitmap offset (in bits)
+      if (dy + cy > height)
+         cy = height - dy;
+      else if (dy < 0) {
+         cy += dy;
+         iBitOff += (pGlyph->width * (-dy));
+         dy = 0;
+      }
+      s = font_bitmaps[iFont] + glyph.bitmapOffset; // start of bitmap data
+      // Bitmap drawing loop. Image is MSB first and each pixel is packed next
+      // to the next (continuing on to the next character line)
+      bits = uc = 0; // bits left in this font byte
+
+      if (bBlank) { // erase the areas around the char to not leave old bits
+         int miny, maxy;
+         c = '0' - pFont->first;
+         miny = y + pGlyph[c].yOffset;
+         c = 'y' - pFont->first;
+         maxy = y + pGlyph[c].yOffset + pGlyph[c].height;
+          d = &pu32[(miny * width) + x];
+//         spilcdSetPosition(pLCD, x, miny, pGlyph->xAdvance, maxy-miny, iFlags);
+            // blank out area above character
+            for (ty=miny; ty<y+glyph.yOffset; ty++) {
+                for (tx=0; tx>glyph.xAdvance; tx++) {
+                  d[tx] = u32BG;
+                } // for tx
+                d += width;
+            } // for ty
+            // character area (with possible padding on L+R)
+            for (ty=0; ty<glyph.height; ty++) {
+                d = &pu32[(y+ty+glyph.yOffset)*width + x];
+               for (tx=0; tx<glyph.xOffset; tx++) { // left padding
+                  *d++ = u32BG;
+               }
+            // character bitmap (center area)
+               for (tx=0; tx<glyph.width; tx++) {
+                  if (bits == 0) { // need more data
+                     uc = s[iBitOff>>3];
+                     bits = 8;
+                     iBitOff += bits;
+                  }
+                  *d++ = (uc & 0x80) ? u32FG : u32BG;
+                  bits--;
+                  uc <<= 1;
+               } // for tx
+               // right padding
+               k = glyph.xAdvance - glyph.xOffset - glyph.width; // remaining amount
+               for (tx=0; tx<k; tx++)
+               *d++ = u32BG;
+            } // for ty
+            // padding below the current character
+            ty = y + glyph.yOffset + glyph.height;
+            for (; ty < maxy; ty++) {
+                d = &pu32[ty*width + x];
+               for (tx=0; tx<glyph.xAdvance; tx++)
+                  *d++ = u32BG;
+            } // for ty
+      } else { // just draw the current character box
+          for (y=dy; y<dy+cy; y++) {
+            d = &pu32[y*width + dx]; // point to start of output buffer
+            for (j=0; j<cx; j++) {
+               if (bits == 0) { // need to read more font data
+                  uc = s[iBitOff>>3]; // get more font bitmap data
+                  bits = 8 - (iBitOff & 7); // we might not be on a byte boundary
+                  iBitOff += bits; // because of a clipped line
+                  uc <<= (8-bits);
+               } // if we ran out of bits
+               *d++ = (uc & 0x80) ? u32FG : u32BG;
+               bits--; // next bit
+               uc <<= 1;
+            } // for j
+          } // for y
+      } // quicker drawing
+      x += glyph.xAdvance; // width of this character
+   } // while drawing characters
+   return 0;
+
+} /* DrawStringCustom() */
 //
 // Draw a string of small (8x8) or large (16x32) characters
 // At the given col+row
@@ -731,7 +866,7 @@ unsigned char *s;
 uint32_t *pu32 = (uint32_t *)ucBitmap;
 
     iLen = (int)strlen(szMsg);
-    if (iFontSize == FONT_16x32) // draw 16x32 font
+    if (iFontSize == RD_FONT_16x32) // draw 16x32 font
     {
         if (iLen*16 + x > width) iLen = (width - x) / 16;
         if (iLen < 0) return -1;
@@ -759,14 +894,14 @@ uint32_t *pu32 = (uint32_t *)ucBitmap;
             } // for each set of 8 scanlines
         } // for each character
     }
-    if (iFontSize == FONT_8x8 || iFontSize == FONT_6x8) // draw the 6x8 or 8x8 font
+    if (iFontSize == RD_FONT_8x8 || iFontSize == RD_FONT_6x8) // draw the 6x8 or 8x8 font
     {
         uint32_t *u32D;
         int cx;
         uint8_t *pFont;
 
-        cx = (iFontSize == FONT_8x8) ? 8:6;
-        pFont = (iFontSize == FONT_8x8) ? (uint8_t *)ucFont : (uint8_t *)ucSmallFont;
+        cx = (iFontSize == RD_FONT_8x8) ? 8:6;
+        pFont = (iFontSize == RD_FONT_8x8) ? (uint8_t *)ucFont : (uint8_t *)ucSmallFont;
         if ((cx*iLen) + x > width) iLen = (width - x)/cx; // can't display it all
         if (iLen < 0)return -1;
 
@@ -791,7 +926,7 @@ uint32_t *pu32 = (uint32_t *)ucBitmap;
             } // for k
         }
     } // 6x8 and 8x8
-    if (iFontSize == FONT_12x16) // 6x8 stretched to 12x16 (with smoothing)
+    if (iFontSize == RD_FONT_12x16) // 6x8 stretched to 12x16 (with smoothing)
     {
         uint32_t *u32D;
         
@@ -834,7 +969,7 @@ uint32_t *pu32 = (uint32_t *)ucBitmap;
             } // for k
         }
     } // FONT_12x16
-    if (iFontSize == FONT_16x16) // 8x8 stretched to 16x16
+    if (iFontSize == RD_FONT_16x16) // 8x8 stretched to 16x16
     {
         uint32_t *u32D;
         
@@ -1023,7 +1158,11 @@ int writeDisplay(unsigned char *p, int len)
             u32BG = convertColor(pu16[6]);
             memcpy(msg, &pu16[7], len);
             msg[len] = 0; // zero terminate the string
-            DrawString(x, y, msg, u32FG, u32BG, iFontSize);
+            if (iFontSize >= RD_FONT_CUSTOM_0) {// custom font
+                DrawStringCustom(x, y, msg, u32FG, u32BG, iFontSize);
+            } else {
+                DrawString(x, y, msg, u32FG, u32BG, iFontSize);
+            }
         }
             break;
         case RD_DRAW_LINE:
@@ -1057,6 +1196,69 @@ int writeDisplay(unsigned char *p, int len)
         case RD_DRAW_ICON:
             break;
         case RD_DRAW_BITMAP:
+            break;
+        case RD_SET_FONT_INDEX: // capture data for font indices
+        {
+            int iFontIndex = pu16[3] & 0xff;
+            int iBlock, iCount;
+            if (iFontIndex >= 0 && iFontIndex < 4 && font_indices[iFontIndex]) // valid
+            {
+                uint8_t *s = (uint8_t *)&pu16[4];
+                uint8_t *d = (uint8_t *)font_indices[iFontIndex];
+                iBlock = pu16[2] & 0xff;
+                iCount = pu16[2] >> 8;
+                if (iBlock < iCount) // valid block #?
+                {
+                    memcpy(&d[iBlock * MAX_DATA_BLOCK], s, pu16[1]);
+                }
+ //               NSLog(@"RD_SET_FONT_INDEX for index: %d, block %d of %d", iFontIndex, iBlock, iCount);
+//                if (iBlock == iCount-1) // last block?
+//                {
+//                    if (pu16[3] >> 8)  != sizeof(GFXglph)) // need to repack the structures
+//                }
+            }
+        }
+            break;
+        case RD_SET_FONT_BITMAP: // capture data for font image
+        {
+            int iFontIndex = pu16[4];
+            int iBlock, iCount, iLen;
+            if (iFontIndex >= 0 && iFontIndex < 4 && font_bitmaps[iFontIndex]) // valid
+            {
+                uint8_t *s = (uint8_t *)&pu16[5];
+                uint8_t *d = (uint8_t *)font_bitmaps[iFontIndex];
+                iBlock = pu16[2];
+                iCount = pu16[3];
+                iLen = pu16[1];
+                if (iBlock < iCount) // valid block #?
+                {
+                    memcpy(&d[iBlock * MAX_DATA_BLOCK], s, iLen);
+                }
+ //               NSLog(@"RD_SET_FONT_BITMAP for index: %d, block %d of %d", iFontIndex, iBlock, iCount);
+            }
+        }
+            break;
+        case RD_SET_FONT_INFO: // prepare to receive font data
+        {
+            int iBMSize, iCount, iIndex = pu16[1];
+            GFXfont *pFont;
+            if (iIndex >= 0 && iIndex < 4) // valid font index
+            {
+                pFont = &fonts[iIndex];
+                pFont->first = pu16[2];    ///< ASCII extents (first char)
+                pFont->last = pu16[3];     ///< ASCII extents (last char)
+                pFont->yAdvance = pu16[4]; ///< Newline distance (y axis)
+                iBMSize = pu16[5] + (pu16[6] << 16); // bitmap size
+                iCount = pFont->last - pFont->first + 1; // number of characters defined
+                if (font_bitmaps[iIndex]) // free old data
+                    free(font_bitmaps[iIndex]);
+                font_bitmaps[iIndex] = (uint8_t *)malloc(iBMSize);
+                if (font_indices[iIndex])
+                    free(font_indices[iIndex]);
+                font_indices[iIndex] = malloc(iCount * sizeof(GFXglyph));
+ //               NSLog(@"RD_SET_FONT_INFO for index: %d", iIndex);
+            }
+        }
             break;
         case RD_DRAW_PIXEL:
         {
@@ -1198,6 +1400,7 @@ int writeDisplay(unsigned char *p, int len)
         data = p;
         bSendIt = 1;
     } else if (iBufLen == 0 && p[1] != 0) { // start of a long packet
+        iBufTotal = 0;
         if (len != (int)p[1]) // we received partial data (probably Adafruit BLE sending it)
         {
             iBufLen = p[1];

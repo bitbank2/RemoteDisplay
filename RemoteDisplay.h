@@ -65,6 +65,8 @@ class RemoteDisplay
     virtual int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     virtual int setOrientation(int angle) {_orientation = angle; return RD_SUCCESS;};
     virtual int dumpBuffer(uint8_t * buffer);
+    virtual int setFont(const GFXfont *pFont, int fontIndex);
+    virtual int setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap);
     int getWidth() {return _width;};
     int getHeight() {return _height;};
     int getBpp() {return _bpp;};
@@ -101,6 +103,8 @@ public:
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
+    int setFont(const GFXfont *pFont, int fontIndex);
+    int setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap);
     int setOrientation(int angle);
     uint16_t getButtons();
 private:
@@ -179,11 +183,14 @@ public:
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
+    int setFont(const GFXfont *pFont, int fontIndex);
+    int setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap);
     int setOrientation(int angle);
     int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 private:
     SPILCD _lcd;
+    GFXfont *_fonts[MAX_FONT_INDEX];
 }; // class SPIDisplay
 
 #endif // __REMOTEDISPLAY__
