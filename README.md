@@ -20,6 +20,10 @@ the same way.</p>
 - Works equally on the 3 main BLE APIs (Arduino, ESP32, Adafruit)<br>
 - Includes example display servers for iOS/MacOS and ESP32<br>
 <br>
+<h2>Ideas</h2>
+- Add LoRa support?<br>
+- Convert API to Adafruit_GFX for wider adoption?<br>
+- Add WiFi support?<br>
 <h2>Goals</h2>
 Initially, this project was to explore using Bluetooth low energy (BLE)
 as a transport for a responsive and interactive system on low cost MCUs. I've
