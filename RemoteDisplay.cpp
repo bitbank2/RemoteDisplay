@@ -545,10 +545,50 @@ int BLEDisplay::setFont(const GFXfont *pFont, int fontIndex)
     return rc;
 } /* BLEDisplay::setFont() */
 
-int BLEDisplay::setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap)
+int BLEDisplay::setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize)
 {
-    return 0;
-}
+    int i, iSize, iCount, rc = RD_SUCCESS;
+    uint8_t *pData;
+    uint16_t u16Tmp[6];
+    
+    iCount = (iBitmapSize + MAX_DATA_BLOCK-1) / MAX_DATA_BLOCK; // send max 230 bytes per block
+    pData = (uint8_t *)pBitmap;
+    // Transmit the font's bitmap data first
+    rc = RD_SUCCESS;
+    for (i=0; i<iCount && rc == RD_SUCCESS; i++) {
+        u16Tmp[0] = RD_SET_BITMAP;
+        u16Tmp[4] = bitmapIndex;
+        u16Tmp[2] = i; // current block
+        u16Tmp[3] = iCount; // total blocks
+        iSize = (iBitmapSize > MAX_DATA_BLOCK) ? MAX_DATA_BLOCK : iBitmapSize;
+        u16Tmp[1] = iSize; // payload size
+        rc = BLESendVarData(u16Tmp, 5, (void *)pData); // send to the remote server
+        pData += iSize;
+        iBitmapSize -= iSize;
+    } // for each block of bitmap data
+
+    return rc;
+} /* setBitmap() */
+
+int BLEDisplay::drawBitmap(int x, int y, int bitmapIndex, int stretch)
+{
+    uint16_t u16Tmp[6];
+    
+    if (bitmapIndex < 0 || bitmapIndex >= MAX_BITMAP_INDEX)
+        return RD_INVALID_PARAMETER;
+    u16Tmp[0] = RD_DRAW_BITMAP;
+    u16Tmp[1] = (uint16_t)bitmapIndex;
+    u16Tmp[2] = (uint16_t)x;
+    u16Tmp[3] = (uint16_t)y;
+    u16Tmp[4] = (uint16_t)stretch;
+    return BLESend(u16Tmp, 5);
+} /* drawBitmap() */
+
+int BLEDisplay::drawIcon(int x, int y, int iconIndex, int angle, uint16_t u16FGColor, uint16_t u16BGColor)
+{
+    return RD_SUCCESS;
+} /* drawIcon() */
+
 int BLEDisplay::drawPixel(int x, int y, uint16_t u16Color)
 {
     uint16_t u16Tmp[8];
@@ -875,6 +915,39 @@ void I2CDisplay::shutdown()
     obdPower(&_obd, 0);
 } /* I2CDisplay::shutdown() */
 
+int I2CDisplay::setFont(const GFXfont *pFont, int fontIndex)
+{
+    if (fontIndex >= 0 && fontIndex < MAX_FONT_INDEX) {
+        _fonts[fontIndex] = (GFXfont *)pFont;
+        return RD_SUCCESS;
+    }
+    return RD_INVALID_PARAMETER;
+} /* setFont() */
+
+int I2CDisplay::setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize)
+{
+    if (bitmapIndex >= MAX_BITMAP_INDEX)
+        return RD_INVALID_PARAMETER;
+    _bitmaps[bitmapIndex] = (uint8_t *)pBitmap;
+    return 0;
+} /* setBitmap() */
+
+int I2CDisplay::drawBitmap(int x, int y, int bitmapIndex, int stretch)
+{
+    (void)stretch; // not implemented for OLED displays
+    if (bitmapIndex < 0 || bitmapIndex >= MAX_BITMAP_INDEX || _bitmaps[bitmapIndex] == NULL)
+        return RD_INVALID_PARAMETER;
+    obdLoadBMP(&_obd, _bitmaps[bitmapIndex], x, y, 0);
+    return RD_SUCCESS;
+} /* drawBitmap() */
+
+int I2CDisplay::drawIcon(int x, int y, int iconIndex, int angle, uint16_t u16FGColor, uint16_t u16BGColor)
+{
+    if (iconIndex < 0 || iconIndex >= MAX_ICON_INDEX)
+        return RD_INVALID_PARAMETER;
+    return RD_SUCCESS;
+} /* drawIcon() */
+
 int I2CDisplay::fill(uint16_t u16Color)
 {
     obdFill(&_obd, (u16Color > 0) ? 0xff:0x00, 1);
@@ -971,10 +1044,13 @@ int SPIDisplay::setFont(const GFXfont *pFont, int fontIndex)
     return RD_INVALID_PARAMETER;
 } /* setFont() */
 
-int SPIDisplay::setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap)
+int SPIDisplay::setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize)
 {
+    if (bitmapIndex >= MAX_BITMAP_INDEX)
+        return RD_INVALID_PARAMETER;
+    _bitmaps[bitmapIndex] = (uint8_t *)pBitmap;
     return 0;
-}
+} /* setBitmap() */
 int SPIDisplay::dumpBuffer(uint8_t * buffer)
 {
     // not implemented yet
@@ -1004,6 +1080,14 @@ int SPIDisplay::drawPixel(int x, int y, uint16_t u16Color)
     spilcdSetPixel(&_lcd, x, y, u16Color, DRAW_TO_LCD);
     return RD_SUCCESS;
 } /* SPIDisplay::drawPixel() */
+
+int SPIDisplay::drawBitmap(int x, int y, int bitmapIndex, int stretch)
+{
+    if (bitmapIndex < 0 || bitmapIndex >= MAX_BITMAP_INDEX || _bitmaps[bitmapIndex] == NULL)
+        return RD_INVALID_PARAMETER;
+    spilcdDrawBMP(&_lcd, _bitmaps[bitmapIndex], x, y, stretch, 0, DRAW_TO_LCD);
+    return RD_SUCCESS;
+} /* drawBitmap() */
 
 int SPIDisplay::setWindow(int x, int y, int w, int h)
 {

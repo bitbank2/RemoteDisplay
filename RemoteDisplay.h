@@ -66,7 +66,9 @@ class RemoteDisplay
     virtual int setOrientation(int angle) {_orientation = angle; return RD_SUCCESS;};
     virtual int dumpBuffer(uint8_t * buffer);
     virtual int setFont(const GFXfont *pFont, int fontIndex);
-    virtual int setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap);
+    virtual int setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize);
+    virtual int drawBitmap(int x, int y, int bitmapIndex, int stretch);
+    virtual int drawIcon(int x, int y, int iconIndex, int angle, uint16_t u16FGColor, uint16_t u16BGColor);
     int getWidth() {return _width;};
     int getHeight() {return _height;};
     int getBpp() {return _bpp;};
@@ -101,10 +103,12 @@ public:
     int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     int dumpBuffer(uint8_t * buffer);
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
+    int drawBitmap(int x, int y, int bitmapIndex, int stretch);
+    int drawIcon(int x, int y, int iconIndex, int angle, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
     int setFont(const GFXfont *pFont, int fontIndex);
-    int setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap);
+    int setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize);
     int setOrientation(int angle);
     uint16_t getButtons();
 private:
@@ -155,12 +159,19 @@ public:
     int writePixels(uint16_t *pixels, int count, uint8_t bDMA);
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
+    int drawBitmap(int x, int y, int bitmapIndex, int stretch);
+    int drawIcon(int x, int y, int iconIndex, int angle, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
+    int setFont(const GFXfont *pFont, int fontIndex);
+    int setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize);
     int setOrientation(int angle);
     int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 private:
     OBDISP _obd;
+    GFXfont *_fonts[MAX_FONT_INDEX];
+    uint8_t *_bitmaps[MAX_BITMAP_INDEX];
+    uint8_t *_icons[MAX_ICON_INDEX];
     int _x, _y, _w, _h; // current window info
     uint8_t _buffer[1024]; // DEBUG
 
@@ -183,14 +194,18 @@ public:
     int drawRect(int x, int y, int w, int h, uint16_t u16Color, int bFilled);
     int drawText(int x, int y, char *szText, uint8_t u8Font, uint16_t u16FGColor, uint16_t u16BGColor);
     int drawEllipse(int x, int y, int r1, int r2, uint16_t u16Color, int bFilled);
+    int drawBitmap(int x, int y, int bitmapIndex, int stretch);
     int setFont(const GFXfont *pFont, int fontIndex);
-    int setBitmap(uint8_t bitmapIndex, uint8_t *pBitmap);
+    int setBitmap(uint8_t bitmapIndex, const uint8_t *pBitmap, int iBitmapSize);
     int setOrientation(int angle);
     int dumpBuffer(uint8_t * buffer);
     uint16_t getButtons();
 private:
     SPILCD _lcd;
     GFXfont *_fonts[MAX_FONT_INDEX];
+    uint8_t *_bitmaps[MAX_BITMAP_INDEX];
+    uint8_t *_icons[MAX_ICON_INDEX];
+
 }; // class SPIDisplay
 
 #endif // __REMOTEDISPLAY__

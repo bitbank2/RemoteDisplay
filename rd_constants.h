@@ -1,5 +1,7 @@
 #define MAX_BUTTONS 4
 #define MAX_FONT_INDEX 4
+#define MAX_BITMAP_INDEX 4
+#define MAX_ICON_INDEX 16
 #define MAX_DATA_BLOCK 230
 /* Defines and variables */
 enum {
@@ -8,8 +10,8 @@ enum {
    RD_DRAW_TEXT,
    RD_DRAW_LINE,
    RD_DRAW_ELLIPSE,
-   RD_DRAW_ICON,
    RD_DRAW_BITMAP,
+   RD_DRAW_ICON,
    RD_DRAW_PIXEL,
    RD_WRITE_PIXELS,
    RD_DUMP_BUFFER,
@@ -24,6 +26,7 @@ enum {
    RD_SET_FONT_INDEX,
    RD_SET_FONT_INFO,
    RD_SET_BITMAP,
+   RD_SET_ICON,
    RD_API_COUNT
 };
 

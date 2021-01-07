@@ -64,6 +64,7 @@ typedef struct {
 static GFXfont fonts[4]; // allow up to 4 custom fonts
 static uint8_t *font_bitmaps[4] = {0,0,0,0};
 static uint8_t *font_indices[4] = {0,0,0,0};
+static uint8_t *bitmaps[4] = {0,0,0,0};
 
 // Horizontal resolution of each display type
 const uint16_t xres_list[] = {
@@ -749,7 +750,7 @@ void drawEllipse(int iCenterX, int iCenterY, int iRadiusX, int iRadiusY, uint32_
 //
 int DrawStringCustom(int x, int y, char *szMsg, uint32_t u32FG, uint32_t u32BG, int iFont)
 {
-int i, j, k, dx, dy, cx, cy, c, iBitOff;
+int i, j, dx, dy, cx, cy, c, iBitOff;
 int tx, ty;
 int bBlank = 1; // DEBUG
 uint8_t *s, bits, uc;
@@ -791,24 +792,19 @@ uint32_t *d, *pu32 = (uint32_t *)ucBitmap;
       if (bBlank) { // erase the areas around the char to not leave old bits
          int miny, maxy;
          c = '0' - pFont->first;
-         miny = y + pGlyph[c].yOffset;
+         miny = y + glyph.yOffset;
          c = 'y' - pFont->first;
-         maxy = y + pGlyph[c].yOffset + pGlyph[c].height;
-          d = &pu32[(miny * width) + x];
-//         spilcdSetPosition(pLCD, x, miny, pGlyph->xAdvance, maxy-miny, iFlags);
+         maxy = y + glyph.yOffset + glyph.height;
             // blank out area above character
-            for (ty=miny; ty<y+glyph.yOffset; ty++) {
-                for (tx=0; tx>glyph.xAdvance; tx++) {
-                  d[tx] = u32BG;
+            for (ty=miny-1; ty<maxy+1; ty++) {
+                d = &pu32[(ty * width) + x];
+                for (tx=0; tx<glyph.xAdvance; tx++) {
+                    d[tx] = u32BG;
                 } // for tx
-                d += width;
             } // for ty
             // character area (with possible padding on L+R)
             for (ty=0; ty<glyph.height; ty++) {
-                d = &pu32[(y+ty+glyph.yOffset)*width + x];
-               for (tx=0; tx<glyph.xOffset; tx++) { // left padding
-                  *d++ = u32BG;
-               }
+                d = &pu32[(y+ty+glyph.yOffset)*width + x + glyph.xOffset];
             // character bitmap (center area)
                for (tx=0; tx<glyph.width; tx++) {
                   if (bits == 0) { // need more data
@@ -820,17 +816,6 @@ uint32_t *d, *pu32 = (uint32_t *)ucBitmap;
                   bits--;
                   uc <<= 1;
                } // for tx
-               // right padding
-               k = glyph.xAdvance - glyph.xOffset - glyph.width; // remaining amount
-               for (tx=0; tx<k; tx++)
-               *d++ = u32BG;
-            } // for ty
-            // padding below the current character
-            ty = y + glyph.yOffset + glyph.height;
-            for (; ty < maxy; ty++) {
-                d = &pu32[ty*width + x];
-               for (tx=0; tx<glyph.xAdvance; tx++)
-                  *d++ = u32BG;
             } // for ty
       } else { // just draw the current character box
           for (y=dy; y<dy+cy; y++) {
@@ -1216,6 +1201,32 @@ int writeDisplay(unsigned char *p, int len)
 //                {
 //                    if (pu16[3] >> 8)  != sizeof(GFXglph)) // need to repack the structures
 //                }
+            }
+        }
+            break;
+        case RD_SET_BITMAP: // capture a bitmap
+        {
+            int iBitmapIndex = pu16[4];
+            int iBlock, iCount, iLen;
+            if (iBitmapIndex >= 0 && iBitmapIndex < 4) // valid
+            {
+                uint8_t *s = (uint8_t *)&pu16[5];
+                uint8_t *d;
+                iBlock = pu16[2];
+                iCount = pu16[3];
+                if (iBlock == 0) // first block
+                {
+                    if (bitmaps[iBitmapIndex]) // free the old one
+                        free(bitmaps[iBitmapIndex]);
+                    bitmaps[iBitmapIndex] = (uint8_t *)malloc(iCount * MAX_DATA_BLOCK);
+                }
+                d = bitmaps[iBitmapIndex];
+                iLen = pu16[1];
+                if (iBlock < iCount) // valid block #?
+                {
+                    memcpy(&d[iBlock * MAX_DATA_BLOCK], s, iLen);
+                }
+ //               NSLog(@"RD_SET_FONT_BITMAP for index: %d, block %d of %d", iFontIndex, iBlock, iCount);
             }
         }
             break;
