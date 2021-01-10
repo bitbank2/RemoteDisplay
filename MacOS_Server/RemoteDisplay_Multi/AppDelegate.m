@@ -16,12 +16,22 @@ static CBMutableCharacteristic *characteristic1, *characteristic2;
 static dispatch_source_t readPollSource;
 static CBMutableService *includedService;
 
+//#if defined( TARGET_OS_MAC ) && !defined (TARGET_OS_IPHONE)
+static int serialFileDescriptor = -1;
+static dispatch_source_t readPollSource;
+static char bsdPath[MAXPATHLEN];
+
+//#endif
+
 @implementation AppDelegate
 
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
     self.peripheralManager = [[CBPeripheralManager alloc] initWithDelegate:self queue:nil];
+    if ([self findModems])
+        [self openPort];
+    
     return YES;
 }
 
@@ -162,5 +172,184 @@ didUnsubscribeFromCharacteristic:(CBCharacteristic *)characteristic;
     NSLog(@"peripheralManagerDidAddService: %@ %@", service, error);
 }
 
+//#if !defined (TARGET_OS_IPHONE)
+
+// UART code
+
+static bool getModemPath(io_iterator_t serialPortIterator, char *thePath, CFIndex maxPathSize)
+{
+    io_object_t        modemService;
+    Boolean            modemFound = false;
+    
+    // Initialize the returned path
+    *thePath = '\0';
+    
+    // Iterate across all modems found. In this example, we bail after finding the first modem.
+    
+    while ((modemService = IOIteratorNext(serialPortIterator)) && !modemFound) {
+        CFTypeRef    bsdPathAsCFString;
+        
+        // Get the callout device's path (/dev/cu.xxxxx). The callout device should almost always be
+        // used: the dialin device (/dev/tty.xxxxx) would be used when monitoring a serial port for
+        // incoming calls, e.g. a fax listener.
+        
+        bsdPathAsCFString = IORegistryEntryCreateCFProperty(modemService,
+                                                            CFSTR(kIOCalloutDeviceKey),
+                                                            kCFAllocatorDefault,
+                                                            0);
+        if (bsdPathAsCFString) {
+            Boolean result;
+            
+            // Convert the path from a CFString to a C (NUL-terminated) string for use
+            // with the POSIX open() call.
+            
+            result = CFStringGetCString(bsdPathAsCFString,
+                                        thePath,
+                                        maxPathSize,
+                                        kCFStringEncodingUTF8);
+            CFRelease(bsdPathAsCFString);
+            
+            if (strncmp(thePath, "/dev/cu.usbmodem", 16) == 0 || strncmp(thePath, "/dev/cu.usbserial", 17) == 0) {
+                NSLog(@"Found a serial port!");
+                modemFound = true;
+            }
+            
+            if (result) {
+                printf("Modem found with BSD path: %s", thePath);
+            }
+        }
+        
+        printf("\n");
+        
+        // Release the io_service_t now that we are done with it.
+        
+        (void) IOObjectRelease(modemService);
+    }
+    
+    return modemFound;
+} /* getModemPath() */
+
+-(bool) findModems
+{
+    kern_return_t            kernResult;
+    CFMutableDictionaryRef    classesToMatch;
+    io_iterator_t    serialPortIterator;
+
+    classesToMatch = IOServiceMatching(kIOSerialBSDServiceValue);
+    
+    if (classesToMatch == NULL) {
+        NSLog(@"IOServiceMatching returned a NULL dictionary.");
+    }
+    else {
+        // Look for devices that claim to be modems.
+        CFDictionarySetValue(classesToMatch,
+                             CFSTR(kIOSerialBSDTypeKey),
+                             CFSTR(kIOSerialBSDAllTypes));
+    }
+    // Get an iterator across all matching devices.
+    kernResult = IOServiceGetMatchingServices(kIOMasterPortDefault, classesToMatch, &serialPortIterator);
+    if (KERN_SUCCESS != kernResult) {
+        NSLog(@"IOServiceGetMatchingServices returned %d\n", kernResult);
+        goto exit;
+    }
+    if (!(getModemPath(serialPortIterator, bsdPath, sizeof(bsdPath))))
+        kernResult = KERN_FAILURE;
+    
+    IOObjectRelease(serialPortIterator);    // Release the iterator.
+exit:
+    return (kernResult == KERN_SUCCESS);
+
+} /* findModems() */
+
+-(void)openPort
+{
+    int result;
+   speed_t baudRate;
+   baudRate = 115200;
+//   NSString *serialPortFile = @"/dev/cu.wchusbserial1410";
+//   const char *bsdPath = [serialPortFile cStringUsingEncoding:NSUTF8StringEncoding];
+    serialFileDescriptor = open(bsdPath, O_RDWR | O_NOCTTY | O_EXLOCK); // | O_NONBLOCK );
+    if (serialFileDescriptor < 1)
+    {
+        NSLog(@"Error opening serial port");
+        return;
+    }
+    NSLog(@"Opened serial port successfully");
+    
+    // Now that the device is open, clear the O_NONBLOCK flag so subsequent I/O will block.
+    // See fcntl(2) ("man 2 fcntl") for details.
+    fcntl(serialFileDescriptor, 0);
+    struct termios options;
+    
+    tcgetattr(serialFileDescriptor, &options);
+    
+    cfmakeraw(&options);
+    options.c_cc[VMIN] = 1; // Wait for at least 1 character before returning
+    options.c_cc[VTIME] = 1; // Wait 100 milliseconds between bytes before returning from read
+    // Set 8 data bits
+    options.c_cflag &= ~CSIZE;
+    options.c_cflag |= CS8; // 8 data bits
+    options.c_cflag |= HUPCL; // Turn on hangup on close
+    options.c_cflag |= CLOCAL; // Set local mode on
+    options.c_cflag |= CREAD; // Enable receiver
+    options.c_lflag &= ~(ICANON /*| ECHO*/ | ISIG); // Turn off canonical mode and signals
+    
+    // Set baud rate
+    result = cfsetspeed(&options, baudRate);
+    
+    result = tcsetattr(serialFileDescriptor, TCSANOW, &options);
+    if (result != 0) {
+            // Try to set baud rate via ioctl if normal port settings fail
+            int new_baud = (int)baudRate;
+            result = ioctl(serialFileDescriptor, IOSSIOSPEED, &new_baud, 1);
+        }
+    // Start a read dispatch source in the background
+    readPollSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, serialFileDescriptor, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+    dispatch_source_set_event_handler(readPollSource, ^{
+                
+        // Data is available
+        static unsigned char buf[1024];
+        static int iOldData = 0;
+        long lengthRead = read(serialFileDescriptor, &buf[iOldData], sizeof(buf)-iOldData);
+        iOldData += (int)lengthRead;
+        // Check for a data sync error. If we miss the beginning of the packet
+        // we have to scan forward until we find valid data
+        if (buf[0] < 2 || buf[0] > 130 || (buf[1] != 0x00 && buf[1] != 0x40)) { // sync error
+            int bInvalid = 1;
+            int iLen, i = 1;
+            while (i < iOldData-2 && bInvalid) { // search forward to sync
+                if (buf[i] >= 2 && buf[i] <= 130 && (buf[i+1] == 0x00 || buf[i+1] == 0x40)) { // test a candidate
+                    iLen = buf[i];
+                    if (i+iLen+2 < iOldData && buf[i+iLen+1] >= 2 && buf[i+iLen+1] <= 130 && (buf[i+iLen+2] == 0x00 || buf[i+iLen+2])) { // looks good
+                        memcpy(buf, &buf[i], iOldData-i); // slide the good data down
+                        iOldData -= i;
+                        bInvalid = 0; // mark it as OK to proceed
+                    }
+                }
+                i++;
+            } // while
+            if (bInvalid) // we can't resync, leave
+                return;
+        }
+        while (iOldData > 0 && iOldData >= buf[0]+1 && buf[0] >= 2 && buf[0] <= 130 && (buf[1] == 0x00 || buf[1] == 0x40)) // enough data + valid to send at least 1 packet?
+        {
+            int iPacketLength = buf[0];
+            NSData *readData = [NSData dataWithBytes:&buf[1] length:iPacketLength];
+            [ViewController processBytes:readData];
+            iOldData -= (iPacketLength+1);
+            memcpy(buf, &buf[iPacketLength+1], iOldData);
+        }
+    });
+    dispatch_source_set_cancel_handler(readPollSource, ^{
+        // Set port back the way it was before we used it
+//        tcsetattr(serialFileDescriptor, TCSADRAIN, &originalPortAttributes);
+        NSLog(@"Closing port.\n");
+        close(serialFileDescriptor);
+    });
+    dispatch_resume(readPollSource);
+//    self.readPollSource = readPollSource;
+
+} /* openPort() */
+//#endif
 
 @end
