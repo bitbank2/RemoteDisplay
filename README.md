@@ -36,5 +36,6 @@ or user intervention makes it ideal for simple point-to-point
 activities. Since creating the basic infrastructure of this library, I
 welcome community involvement to grow this into something truly useful for
 the whole embedded/Arduino community.<br>
-
-
+<br>
+<h2>API</h2>
+Please see details about the API in the [Wiki](https://github.com/bitbank2/RemoteDisplay/wiki)<br>
